@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: minigit
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/minigit?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USER:minigit}
+    password: ${DB_PASSWORD:minigit}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate          # Flyway owns the schema; never "update"
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 10MB         # placeholder until V-01..V-09 are confirmed
+      max-request-size: 50MB
+
+minigit:
+  storage:
+    root: ${MINIGIT_STORAGE_ROOT:./minigit-data/repos}   # one directory per repository
+  security:
+    # true = every /api/v1 endpoint is open (dev only, until the JWT filter lands).
+    # Set to false once U1 is merged.
+    open-dev: ${MINIGIT_OPEN_DEV:true}
+  cors:
+    allowed-origins: ${MINIGIT_CORS:http://localhost:5173}
+  jwt:
+    secret: ${JWT_SECRET:change-me-to-a-long-random-string-at-least-32-bytes}
+    expiry-minutes: 30

@@ -1,0 +1,16 @@
+# Java / Maven
+backend/target/
+*.class
+*.log
+# Node
+frontend/node_modules/
+frontend/dist/
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+# Local config and data
+.env
+backend/src/main/resources/application-local.yml
+minigit-data/
