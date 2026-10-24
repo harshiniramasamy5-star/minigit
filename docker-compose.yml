@@ -1,0 +1,19 @@
+# Optional: MySQL for local dev if you don't want to install it with Homebrew.
+#   docker compose up -d      start
+#   docker compose down       stop (data is kept in the volume)
+# Matches the database/user the backend expects (minigit / minigit).
+# If Homebrew MySQL is already running on 3306, stop it first: brew services stop mysql
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: minigit
+      MYSQL_USER: minigit
+      MYSQL_PASSWORD: minigit
+    ports:
+      - "3306:3306"
+    volumes:
+      - minigit-mysql:/var/lib/mysql
+volumes:
+  minigit-mysql:
