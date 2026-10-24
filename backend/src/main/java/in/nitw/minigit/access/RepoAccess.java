@@ -1,18 +1,18 @@
 package in.nitw.minigit.access;
 
 import in.nitw.minigit.common.ApiException;
+import in.nitw.minigit.readmodel.CurrentUser;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 /**
  * Who is calling, and may they touch this repo (SRS Table 2).
- * Shared by the branch, merge and undo controllers. If U1/U9 already ship an
- * equivalent helper, switch these call sites to it and delete this class.
+ * The user comes from the shared CurrentUser helper, so the X-Dev-User header works in
+ * open-dev mode and the JWT takes over once U1 lands.
  */
 @Component
 public class RepoAccess {
@@ -20,28 +20,17 @@ public class RepoAccess {
     public enum Level { READ, WRITE, OWNER }
 
     private final JdbcTemplate jdbc;
+    private final CurrentUser currentUser;
+    private final HttpServletRequest request;
 
-    public RepoAccess(JdbcTemplate jdbc) {
+    public RepoAccess(JdbcTemplate jdbc, CurrentUser currentUser, HttpServletRequest request) {
         this.jdbc = jdbc;
+        this.currentUser = currentUser;
+        this.request = request;
     }
 
-    /** Logged-in user id. The JWT subject can be either the numeric id or the username. */
     public long currentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated() || auth.getName() == null
-                || "anonymousUser".equals(auth.getName())) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Log in first");
-        }
-        String name = auth.getName();
-        try {
-            return Long.parseLong(name);
-        } catch (NumberFormatException notNumeric) {
-            List<Long> ids = jdbc.queryForList("SELECT id FROM users WHERE username = ?", Long.class, name);
-            if (ids.isEmpty()) {
-                throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Unknown user");
-            }
-            return ids.get(0);
-        }
+        return currentUser.requireId(request.getHeader("X-Dev-User"));
     }
 
     public String username(long userId) {
