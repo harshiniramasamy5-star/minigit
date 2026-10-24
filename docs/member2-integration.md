@@ -15,7 +15,8 @@ controller layer on top of it, using only the V1 tables.
 
 - `pr`: `PullRequestService`/`PullRequestController` (U8), `PullRules` (input checks and state rules, unit tested).
 - `merge.BranchesMerged`: event `MergeService` now publishes after a fast-forward, clean merge or finished conflict session.
-- Frontend: `PullsPage`, `NewPullPage`, `PullDetailPage`.
+- Frontend: `PullsPage`, `NewPullPage`, `PullDetailPage`; and for Aakriti's U5-U7/U10 backend: `BranchesPage` (list, create, delete
+  to the recycle bin, undo, merge) and `ConflictPage` (resolve each conflict: ours, theirs, edit by hand or delete; finish or abort).
 
 ## How it behaves
 - Each user has one server-side working copy per repo (`<storage root>/<repoId>/worktrees/<userId>`). The first request checks out the default branch.
@@ -32,7 +33,8 @@ controller layer on top of it, using only the V1 tables.
 - Limits are placeholders until V-01..V-09 are confirmed: 10 MB per file (`WorktreeService.MAX_FILE_BYTES`).
 
 ## Known gaps
-- The conflict screen (U6/U7, `merges/:sessionId`) is still a placeholder: a PR merge that hits conflicts tells you the session id and keeps the PR open.
+- Merge sessions live in memory (Aakriti's design): a restart or an hour of waiting ends them, and the conflict page says so.
+- Undo moves the branch head; if your working copy is on that branch it shows the "branch has new commits" banner, so use Discard changes.
 - A merged PR shows its merge commit but not an inline diff (the schema doesn't keep the old target head).
 - No test boots the whole app: the file logic has unit tests, the SQL was run by hand against the V1 schema.
 - Whole files are held in memory for status, diff and listing. Fine for course-sized repos, not for large ones.

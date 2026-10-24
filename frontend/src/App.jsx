@@ -8,7 +8,9 @@ import GraphPage from './pages/GraphPage'
 import LoginPage from './pages/LoginPage'
 import RepoLayout from './pages/RepoLayout'
 import NotFoundPage from './pages/NotFoundPage'
+import BranchesPage from './pages/BranchesPage'
 import CodePage from './pages/CodePage'
+import ConflictPage from './pages/ConflictPage'
 import CommitDetailPage from './pages/CommitDetailPage'
 import CommitsPage from './pages/CommitsPage'
 import NewPullPage from './pages/NewPullPage'
@@ -37,8 +39,8 @@ export default function App() {
           <Route path="commits" element={<CommitsPage />} />
           <Route path="commits/:hash" element={<CommitDetailPage />} />
           <Route path="graph" element={<GraphPage />} />
-          <Route path="branches" element={<Placeholder title="Branches + undo" owner="Aakriti" useCase="U5, U10" />} />
-          <Route path="merges/:sessionId" element={<Placeholder title="Resolve conflicts" owner="Aakriti" useCase="U6, U7" />} />
+          <Route path="branches" element={<BranchesPage />} />
+          <Route path="merges/:sessionId" element={<ProtectedRoute><ConflictPage /></ProtectedRoute>} />
           <Route path="pulls" element={<PullsPage />} />
           <Route path="pulls/new" element={<ProtectedRoute><NewPullPage /></ProtectedRoute>} />
           <Route path="pulls/:number" element={<PullDetailPage />} />

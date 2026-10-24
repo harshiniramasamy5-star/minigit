@@ -88,8 +88,9 @@ export default function PullDetailPage() {
         )}
         {conflict && (
           <p className="mt-3 rounded border border-conflict/50 p-2 text-sm text-conflict" role="alert">
-            This merge has conflicts. A merge session was opened (id {conflict}). The pull request stays open and turns merged
-            when that session is finished. The conflict screen (U6/U7) isn't built yet, so for now use <span className="font-mono">/api/v1/repos/{repo?.id}/merges/{conflict}</span>.
+            This merge has conflicts, so nothing was merged yet. The pull request stays open and turns merged when you
+            finish the merge.{' '}
+            <Link to={`../../merges/${conflict}`} relative="path" className="font-medium underline">Resolve the conflicts</Link>
           </p>
         )}
       </section>
