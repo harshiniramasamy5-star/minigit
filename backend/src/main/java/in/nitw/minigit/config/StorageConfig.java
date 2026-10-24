@@ -9,10 +9,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Exposes the object-store root as a Path bean. Layout (owned by U3 / ObjectStore):
+ * Exposes the object-store root as a Path bean. Layout (see storage.RepoObjectStores):
  *   <root>/<repoId>/objects/<first 2 hex>/<remaining 62 hex>
  *   <root>/<repoId>/worktrees/<userId>/...
- *   <root>/<repoId>/tmp/          (atomic writes: write here, then Files.move ATOMIC_MOVE)
+ *   <root>/<repoId>/objects/tmp/  (atomic writes: write here, then Files.move ATOMIC_MOVE)
  */
 @Configuration
 public class StorageConfig {
