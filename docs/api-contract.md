@@ -1,10 +1,14 @@
-# MiniGit API contract (draft v0.1, for team review)
+# MiniGit API contract (draft v0.2, for team review)
 
 Base path: `/api/v1`. JSON everywhere except file upload (`multipart/form-data`) and raw file download.
 Auth: `Authorization: Bearer <jwt>` (30-min fixed expiry, no refresh). Hashes are 64-char SHA-256 hex.
 Repos are addressed as `{owner}/{repo}` (username + repo name), like GitHub.
 
 Status for review: **nothing here is final until all four of us OK it.** Change it by PR to this file.
+
+**v0.2 changes (Harshini, 2026-10-24):** PR merge no longer returns conflicts as a 409 (`ApiError` has no
+`sessionId` field), approvals are recorded only, `INVALID_PATH` and `INTERNAL_ERROR` rows added, commit time rule
+added. Two new questions at the bottom.
 
 ## Errors (same shape for every endpoint)
 
@@ -16,7 +20,7 @@ Status for review: **nothing here is final until all four of us OK it.** Change 
 | HTTP | code | When |
 |---|---|---|
 | 400 | `VALIDATION_FAILED` | Bean validation failed; see `fieldErrors` |
-| 400 | `INVALID_PATH` | `..`, absolute path, backslash, `.minigit/` etc. |
+| 400 | `INVALID_PATH` | `..`, absolute path, backslash, `.minigit/`, two paths that normalise to the same file, file/folder clash (`a` and `a/b`). `a//b` and `./a` are accepted and normalised. |
 | 401 | `UNAUTHENTICATED` | Missing/expired token |
 | 403 | `FORBIDDEN` | Role too low (Table 2) |
 | 404 | `NOT_FOUND` | Also used for private repos the caller can't see (don't leak existence) |
@@ -24,6 +28,9 @@ Status for review: **nothing here is final until all four of us OK it.** Change 
 | 409 | `MERGE_IN_PROGRESS` | Action blocked by an open merge session |
 | 409 | `NAME_TAKEN` | Repo/branch name already exists |
 | 423 | `ACCOUNT_LOCKED` | 5 failed logins, locked 15 min |
+| 500 | `INTERNAL_ERROR` | Anything unhandled (logged on the server) |
+
+The error body never carries extra data (no `sessionId`, no `commit`). If the client needs data back, it's a 2xx.
 
 Paged lists: `?page=0&size=20` → `{ "items": [...], "page": 0, "size": 20, "total": 57 }`.
 
@@ -90,6 +97,11 @@ Repo = `{id, owner, name, description, visibility, defaultBranch, myRole, create
 
 Commit = `{hash, treeHash, parents: [hash], author, message, createdAt}`
 
+`createdAt` is the time stored inside the commit object. Services write commits with
+`RepoObjectStores.writeCommit(...)` and save `StoredCommit.createdAt()` to `commits.created_at`, so the two always
+match (millisecond precision). Don't rely on the column default. File paths go through
+`RepoObjectStores.buildTree(...)`, which runs `PathValidator` first.
+
 ## U5 Branches: Aakriti
 
 | Method | Path | Body | Response |
@@ -126,11 +138,15 @@ Branch names with `/` (e.g. `feat/login`) are URL-encoded in the path.
 | POST | `/repos/{owner}/{repo}/pulls` | `{title, description?, source, target}` (Write) | 201 PR |
 | GET | `/repos/{owner}/{repo}/pulls/{number}` | | PR + `diff`, `comments`, `approvals` |
 | POST | `/repos/{owner}/{repo}/pulls/{number}/comments` | `{body}` (Read) | 201 comment |
-| POST | `/repos/{owner}/{repo}/pulls/{number}/approve` | not the author (Write) | 204 |
-| POST | `/repos/{owner}/{repo}/pulls/{number}/merge` | runs U6; conflicts → 409 with `sessionId` | PR |
+| POST | `/repos/{owner}/{repo}/pulls/{number}/approve` | not the author, PR must be OPEN; approving twice is a no-op (Write) | 204 |
+| POST | `/repos/{owner}/{repo}/pulls/{number}/merge` | runs U6, approval **not** required (Write) | `{result: UP_TO_DATE\|FAST_FORWARD\|MERGED\|CONFLICTS, commit?, sessionId?, pr}` |
 | POST | `/repos/{owner}/{repo}/pulls/{number}/close` | | PR |
 
 PR = `{number, title, description, author, source, target, status: OPEN|MERGED|CLOSED, approvals: [username], createdAt, closedAt?}`
+
+There is no `APPROVED` status. Approving adds a row to `pr_approvals` and the PR stays `OPEN` (SRS v1.2: approval
+recorded, not required to merge). On `CONFLICTS` the PR stays `OPEN`; the user resolves through
+`/merges/{sessionId}` and the PR becomes `MERGED` when that session completes.
 
 ## Harshini: explore, dashboard, health
 
@@ -144,3 +160,7 @@ PR = `{number, title, description, author, source, target, status: OPEN|MERGED|C
 1. Do PR merges reuse `/merges` (one code path), or does U8 call the merge service directly? (Proposed: call the service directly, same result shape.)
 2. Restore = new commit on the branch (proposed) or move the head back? Undo already covers "move back".
 3. Max upload size, max files per commit, max repo size: depends on V-01..V-09.
+4. Who owns U10 (undo)? This file says Aakriti; the SRS v1.2 review assigned U10 and U11 to Shrejal (still to confirm).
+5. When a PR merge hits conflicts and the session is completed through `/merges/{sessionId}/complete`, which code
+   marks the PR `MERGED`: the U6 service (needs to know the PR) or a U8 hook? Proposed: `merge_sessions` gets an
+   optional `pr_id` in a V2 migration.

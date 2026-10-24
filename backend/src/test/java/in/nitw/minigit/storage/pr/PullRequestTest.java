@@ -2,6 +2,10 @@ package in.nitw.minigit.storage.pr;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class PullRequestTest {
@@ -29,16 +33,29 @@ class PullRequestTest {
     }
 
     @Test
-    void otherUserCanApprove() {
+    void otherUserCanApproveAndStatusStaysOpen() {
         PullRequest pr = newPr();
-        pr.approve("bob");
-        assertEquals(PullRequestStatus.APPROVED, pr.getStatus());
-        assertEquals("bob", pr.getApprovedBy());
+        assertTrue(pr.approve("bob"));
+        assertEquals(PullRequestStatus.OPEN, pr.getStatus());
+        assertEquals(Set.of("bob"), pr.getApprovals());
+        assertTrue(pr.isApproved());
     }
 
     @Test
-    void cannotMergeBeforeApproval() {
-        assertThrows(IllegalStateException.class, () -> newPr().markMerged());
+    void approvingTwiceIsANoOp() {
+        PullRequest pr = newPr();
+        assertTrue(pr.approve("bob"));
+        assertFalse(pr.approve("bob"));
+        assertTrue(pr.approve("carol"));
+        assertEquals(List.of("bob", "carol"), List.copyOf(pr.getApprovals()));
+    }
+
+    @Test
+    void canMergeWithoutApproval() {
+        PullRequest pr = newPr();
+        pr.markMerged();
+        assertEquals(PullRequestStatus.MERGED, pr.getStatus());
+        assertFalse(pr.isApproved());
     }
 
     @Test
@@ -50,12 +67,29 @@ class PullRequestTest {
     }
 
     @Test
+    void mergedPrIsFinal() {
+        PullRequest pr = newPr();
+        pr.markMerged();
+        assertThrows(IllegalStateException.class, pr::markMerged);
+        assertThrows(IllegalStateException.class, pr::close);
+        assertThrows(IllegalStateException.class, () -> pr.approve("bob"));
+    }
+
+    @Test
+    void statusesMatchSchemaEnum() {
+        // pull_requests.status is ENUM('OPEN','MERGED','CLOSED') in V1
+        assertEquals(List.of("OPEN", "MERGED", "CLOSED"),
+                Arrays.stream(PullRequestStatus.values()).map(Enum::name).toList());
+    }
+
+    @Test
     void closedPrCannotBeReopenedApprovedOrCommented() {
         PullRequest pr = newPr();
         pr.close();
         assertThrows(IllegalStateException.class, () -> pr.approve("bob"));
         assertThrows(IllegalStateException.class, () -> pr.comment("bob", "hi"));
         assertThrows(IllegalStateException.class, pr::close);
+        assertThrows(IllegalStateException.class, pr::markMerged);
     }
 
     @Test

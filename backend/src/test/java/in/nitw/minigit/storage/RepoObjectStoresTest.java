@@ -10,6 +10,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import in.nitw.minigit.common.PathValidator.InvalidPathException;
+
+import java.util.LinkedHashMap;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Checks the per-repository folder layout and that repositories don't see each other's objects. */
@@ -55,5 +59,44 @@ class RepoObjectStoresTest {
         RepoObjectStores stores = new RepoObjectStores(root);
         assertThrows(IllegalArgumentException.class, () -> stores.objects(0));
         assertThrows(IllegalArgumentException.class, () -> stores.worktree(1, -1));
+    }
+
+    @Test
+    void buildTreeNormalisesClientPaths() {
+        RepoObjectStores stores = new RepoObjectStores(root);
+        String strict = stores.treeBuilder(1).build(Map.of("a/b.txt", "x".getBytes(), "c.txt", "y".getBytes()));
+        String loose = stores.buildTree(1, Map.of("a//b.txt", "x".getBytes(), "./c.txt", "y".getBytes()));
+        assertEquals(strict, loose);
+    }
+
+    @Test
+    void buildTreeRejectsBadPathsAsInvalidPath() {
+        RepoObjectStores stores = new RepoObjectStores(root);
+        assertThrows(InvalidPathException.class, () -> stores.buildTree(1, Map.of("../evil", "x".getBytes())));
+        assertThrows(InvalidPathException.class, () -> stores.buildTree(1, Map.of("/etc/passwd", "x".getBytes())));
+        assertThrows(InvalidPathException.class, () -> stores.buildTree(1, Map.of("a\\b", "x".getBytes())));
+        assertThrows(InvalidPathException.class, () -> stores.buildTree(1, Map.of(".minigit/HEAD", "x".getBytes())));
+
+        Map<String, byte[]> dup = new LinkedHashMap<>();
+        dup.put("a/b.txt", "1".getBytes());
+        dup.put("a//b.txt", "2".getBytes());
+        assertThrows(InvalidPathException.class, () -> stores.buildTree(1, dup));
+
+        Map<String, byte[]> clash = new LinkedHashMap<>();
+        clash.put("a", "file".getBytes());
+        clash.put("a/b.txt", "inside".getBytes());
+        assertThrows(InvalidPathException.class, () -> stores.buildTree(1, clash));
+    }
+
+    @Test
+    void writeCommitReturnsTheTimeStoredInTheObject() {
+        RepoObjectStores stores = new RepoObjectStores(root);
+        String tree = stores.buildTree(4, Map.of("a.txt", "x".getBytes()));
+        Instant now = Instant.parse("2026-10-24T10:15:30.123456789Z");
+
+        StoredCommit c = stores.writeCommit(4, tree, List.of(), "harshini", "init", now);
+
+        assertEquals(Instant.parse("2026-10-24T10:15:30.123Z"), c.createdAt());   // ms, like DATETIME(3)
+        assertEquals(c.createdAt(), stores.history(4).getCommit(c.hash()).getTime());
     }
 }
