@@ -7,6 +7,7 @@ import in.nitw.minigit.storage.RepoObjectStores;
 import in.nitw.minigit.storage.StoredCommit;
 import in.nitw.minigit.undo.HeadMoveCommand;
 import in.nitw.minigit.undo.UndoService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,13 +53,16 @@ public class MergeService {
     private final BranchStore branches;
     private final CommitRows commitRows;
     private final UndoService undo;
+    private final ApplicationEventPublisher events;
     private final Map<String, MergeSession> sessions = new ConcurrentHashMap<>();
 
-    public MergeService(RepoObjectStores stores, BranchStore branches, CommitRows commitRows, UndoService undo) {
+    public MergeService(RepoObjectStores stores, BranchStore branches, CommitRows commitRows, UndoService undo,
+                        ApplicationEventPublisher events) {
         this.stores = stores;
         this.branches = branches;
         this.commitRows = commitRows;
         this.undo = undo;
+        this.events = events;
     }
 
     @Transactional
@@ -91,6 +95,7 @@ public class MergeService {
             case FAST_FORWARD:
                 if (!branches.moveHead(repoId, target, ours, theirs)) throw moved(target);
                 undo.record(repoId, target, HeadMoveCommand.Kind.MERGE, ours, theirs);
+                events.publishEvent(new BranchesMerged(repoId, source, target, theirs));
                 return new MergeResult("FAST_FORWARD", theirs, null);
             default:
                 break;
@@ -150,6 +155,7 @@ public class MergeService {
             throw moved(s.targetBranch());
         }
         undo.record(s.repoId(), s.targetBranch(), HeadMoveCommand.Kind.MERGE, s.oursHash(), c.hash());
+        events.publishEvent(new BranchesMerged(s.repoId(), s.sourceBranch(), s.targetBranch(), c.hash()));
         return c.hash();
     }
 

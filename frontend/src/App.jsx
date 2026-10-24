@@ -8,7 +8,13 @@ import GraphPage from './pages/GraphPage'
 import LoginPage from './pages/LoginPage'
 import RepoLayout from './pages/RepoLayout'
 import NotFoundPage from './pages/NotFoundPage'
+import CodePage from './pages/CodePage'
+import CommitDetailPage from './pages/CommitDetailPage'
+import CommitsPage from './pages/CommitsPage'
+import NewPullPage from './pages/NewPullPage'
 import NewRepoPage from './pages/NewRepoPage'
+import PullDetailPage from './pages/PullDetailPage'
+import PullsPage from './pages/PullsPage'
 import RecycleBinPage from './pages/RecycleBinPage'
 import RegisterPage from './pages/RegisterPage'
 import RepoSettingsPage from './pages/RepoSettingsPage'
@@ -27,14 +33,15 @@ export default function App() {
 
         {/* Repo pages are visible to guests for public repos; the API decides access. */}
         <Route path=":owner/:repo" element={<RepoLayout />}>
-          <Route index element={<Placeholder title="Files + working copy" owner="Arisha" useCase="U3" />} />
-          <Route path="commits" element={<Placeholder title="History, diff, restore" owner="Arisha" useCase="U4" />} />
-          <Route path="commits/:hash" element={<Placeholder title="Commit detail" owner="Arisha" useCase="U4" />} />
+          <Route index element={<CodePage />} />
+          <Route path="commits" element={<CommitsPage />} />
+          <Route path="commits/:hash" element={<CommitDetailPage />} />
           <Route path="graph" element={<GraphPage />} />
           <Route path="branches" element={<Placeholder title="Branches + undo" owner="Aakriti" useCase="U5, U10" />} />
           <Route path="merges/:sessionId" element={<Placeholder title="Resolve conflicts" owner="Aakriti" useCase="U6, U7" />} />
-          <Route path="pulls" element={<Placeholder title="Pull requests" owner="Arisha" useCase="U8" />} />
-          <Route path="pulls/:number" element={<Placeholder title="Pull request" owner="Arisha" useCase="U8" />} />
+          <Route path="pulls" element={<PullsPage />} />
+          <Route path="pulls/new" element={<ProtectedRoute><NewPullPage /></ProtectedRoute>} />
+          <Route path="pulls/:number" element={<PullDetailPage />} />
           <Route path="settings" element={<ProtectedRoute><RepoSettingsPage /></ProtectedRoute>} />
         </Route>
 
