@@ -47,8 +47,8 @@ public class BranchController {
 
     @DeleteMapping
     public Map<String, String> delete(@PathVariable long repoId, @RequestParam String name) {
-        writer(repoId);
-        branches.delete(repoId, name);
+        long user = writer(repoId);
+        branches.delete(repoId, user, name);
         return Map.of("deleted", name);
     }
 

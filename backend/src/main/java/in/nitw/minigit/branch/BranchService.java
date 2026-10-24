@@ -38,7 +38,11 @@ public class BranchService {
     public BranchView create(long repoId, String name, String from) {
         BranchNames.check(name);
         if (branches.find(repoId, name).isPresent()) {
-            throw new ApiException(HttpStatus.CONFLICT, "CONFLICT", "Branch already exists: " + name);
+            throw new ApiException(HttpStatus.CONFLICT, "NAME_TAKEN", "Branch already exists: " + name);
+        }
+        if (branches.isInRecycleBin(repoId, name)) {
+            throw new ApiException(HttpStatus.CONFLICT, "NAME_TAKEN",
+                    "A branch named " + name + " is in the recycle bin. Restore or delete it first.");
         }
         String start = resolveStart(repoId, from);
         branches.create(repoId, name, start);
@@ -53,12 +57,12 @@ public class BranchService {
         return head;
     }
 
-    public void delete(long repoId, String name) {
+    public void delete(long repoId, long userId, String name) {
         BranchStore.Branch b = require(repoId, name);
         if (b.isProtected() || "main".equals(name)) {
             throw new ApiException(HttpStatus.CONFLICT, "BRANCH_PROTECTED", name + " is protected");
         }
-        branches.delete(repoId, name);
+        branches.softDelete(repoId, name, userId);
         undo.forget(repoId, name);
     }
 

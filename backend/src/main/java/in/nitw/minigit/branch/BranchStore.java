@@ -34,12 +34,19 @@ public class BranchStore {
 
     public List<Branch> list(long repoId) {
         return jdbc.query("SELECT id, repo_id, name, head_commit_hash, is_protected FROM branches "
-                + "WHERE repo_id = ? ORDER BY name", BranchStore::map, repoId);
+                + "WHERE repo_id = ? AND deleted_at IS NULL ORDER BY name", BranchStore::map, repoId);
     }
 
     public Optional<Branch> find(long repoId, String name) {
         return jdbc.query("SELECT id, repo_id, name, head_commit_hash, is_protected FROM branches "
-                + "WHERE repo_id = ? AND name = ?", BranchStore::map, repoId, name).stream().findFirst();
+                + "WHERE repo_id = ? AND name = ? AND deleted_at IS NULL", BranchStore::map, repoId, name).stream().findFirst();
+    }
+
+    /** True if a branch with this name is in the recycle bin (it still owns the unique (repo, name) key). */
+    public boolean isInRecycleBin(long repoId, String name) {
+        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM branches WHERE repo_id = ? AND name = ? "
+                + "AND deleted_at IS NOT NULL", Long.class, repoId, name);
+        return n != null && n > 0;
     }
 
     public void create(long repoId, String name, String headCommitHash) {
@@ -54,7 +61,17 @@ public class BranchStore {
                 next, repoId, name, expected) == 1;
     }
 
-    public void delete(long repoId, String name) {
-        jdbc.update("DELETE FROM branches WHERE repo_id = ? AND name = ?", repoId, name);
+    /**
+     * U11: a delete is a move to the recycle bin (branches.deleted_at + a recycle_bin row, kept 7 days).
+     * Restore or the daily cleanup in the recycle package takes it from there.
+     */
+    public void softDelete(long repoId, String name, long deletedBy) {
+        Optional<Branch> b = find(repoId, name);
+        if (b.isEmpty()) return;
+        java.sql.Timestamp now = java.sql.Timestamp.from(java.time.Instant.now());
+        java.sql.Timestamp expires = java.sql.Timestamp.from(java.time.Instant.now().plus(java.time.Duration.ofDays(7)));
+        jdbc.update("UPDATE branches SET deleted_at = ? WHERE id = ?", now, b.get().id());
+        jdbc.update("INSERT INTO recycle_bin (item_type, item_id, repo_id, deleted_by, deleted_at, expires_at) "
+                + "VALUES ('BRANCH', ?, ?, ?, ?, ?)", b.get().id(), repoId, deletedBy, now, expires);
     }
 }

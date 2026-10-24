@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Resolves the logged-in user's id.
@@ -32,15 +33,18 @@ public class CurrentUser {
     }
 
     public long requireId(String devUserHeader) {
+        return findId(devUserHeader)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Please log in"));
+    }
+
+    /** Like {@link #requireId} but empty for guests (public pages that work without logging in). */
+    public Optional<Long> findId(String devUserHeader) {
         String username = resolveUsername(devUserHeader);
         if (username == null) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Please log in");
+            return Optional.empty();
         }
         List<Long> ids = jdbc.queryForList("SELECT id FROM users WHERE username = ?", Long.class, username);
-        if (ids.isEmpty()) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Please log in");
-        }
-        return ids.get(0);
+        return ids.isEmpty() ? Optional.empty() : Optional.of(ids.get(0));
     }
 
     private String resolveUsername(String devUserHeader) {
