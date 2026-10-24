@@ -22,6 +22,9 @@ export default function Layout() {
             {user ? (
               <>
                 <span className="text-white/80">{user.username}</span>
+                {user.dev && (
+                  <span className="rounded border border-conflict/60 px-1.5 text-xs text-conflict" title="Temporary dev login, no password">dev</span>
+                )}
                 <button onClick={logout} className="text-white/70 hover:text-white">Log out</button>
               </>
             ) : (

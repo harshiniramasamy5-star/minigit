@@ -3,24 +3,28 @@ package in.nitw.minigit.storage.pr;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Pull request with its state machine.
+ * Pull request with its state machine (SRS v1.2, schema V1).
  *
- * OPEN -> APPROVED -> MERGED
- * OPEN or APPROVED -> CLOSED
+ * OPEN -> MERGED
+ * OPEN -> CLOSED
  * MERGED and CLOSED are final.
+ *
+ * Approval is recorded (pr_approvals), not required to merge. Approving does not change the status.
  */
 public class PullRequest {
 
-    private Long id;                       // set by the database later (Mem 4's JPA setup)
+    private Long id;                       // set from pull_requests.id by the U8 service
     private final String title;
     private final String author;
     private final String sourceBranch;
     private final String targetBranch;
     private PullRequestStatus status;
-    private String approvedBy;
+    private final Set<String> approvals = new LinkedHashSet<>();   // usernames, in approval order
     private final List<PullRequestComment> comments = new ArrayList<>();
 
     public PullRequest(String title, String author, String sourceBranch, String targetBranch) {
@@ -46,8 +50,13 @@ public class PullRequest {
         comments.add(new PullRequestComment(commenter, text, Instant.now()));
     }
 
-    /** Approve the PR. The author cannot approve their own PR (F14). */
-    public void approve(String reviewer) {
+    /**
+     * Record an approval. The author cannot approve their own PR, and only OPEN PRs can be approved.
+     * Approving twice is a no-op (pr_approvals has PRIMARY KEY (pr_id, user_id)).
+     *
+     * @return true if this is a new approval, false if the reviewer had already approved
+     */
+    public boolean approve(String reviewer) {
         requireText(reviewer, "reviewer");
         if (reviewer.equals(author)) {
             throw new IllegalStateException("Authors cannot approve their own pull request");
@@ -55,14 +64,13 @@ public class PullRequest {
         if (status != PullRequestStatus.OPEN) {
             throw new IllegalStateException("Only OPEN pull requests can be approved, but this one is " + status);
         }
-        this.status = PullRequestStatus.APPROVED;
-        this.approvedBy = reviewer;
+        return approvals.add(reviewer);
     }
 
-    /** Mark as merged. The real merge of commits is done by Mem 3's MergeStrategy. */
+    /** Mark as merged. The merge of commits itself is done by the U6 merge service. No approval needed. */
     public void markMerged() {
-        if (status != PullRequestStatus.APPROVED) {
-            throw new IllegalStateException("Only APPROVED pull requests can be merged, but this one is " + status);
+        if (status != PullRequestStatus.OPEN) {
+            throw new IllegalStateException("Only OPEN pull requests can be merged, but this one is " + status);
         }
         this.status = PullRequestStatus.MERGED;
     }
@@ -91,6 +99,7 @@ public class PullRequest {
     public String getSourceBranch() { return sourceBranch; }
     public String getTargetBranch() { return targetBranch; }
     public PullRequestStatus getStatus() { return status; }
-    public String getApprovedBy() { return approvedBy; }
+    public boolean isApproved() { return !approvals.isEmpty(); }
+    public Set<String> getApprovals() { return Collections.unmodifiableSet(approvals); }
     public List<PullRequestComment> getComments() { return Collections.unmodifiableList(comments); }
 }
