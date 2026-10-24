@@ -1,5 +1,10 @@
 package in.nitw.minigit.config;
 
+import in.nitw.minigit.auth.JwtAuthFilter;
+import in.nitw.minigit.auth.JwtService;
+import in.nitw.minigit.common.ApiError;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -10,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -17,21 +23,22 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * Stateless JWT security skeleton.
- *
- * TODO(U1, Shrejal): add JwtAuthFilter and register it with
- *   http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
- * then set MINIGIT_OPEN_DEV=false. Repo-level checks (Read/Write/Owner, SRS Table 2)
- * go in a PermissionService used via @PreAuthorize on controllers.
+ * Stateless JWT security. JwtAuthFilter (U1) runs in every mode; set MINIGIT_OPEN_DEV=false to make
+ * the endpoints below require a token. Repo-level checks (Read/Write/Owner, SRS Table 2) live in
+ * access.RepoAccess. Missing/expired token = 401 UNAUTHENTICATED in the standard ApiError shape.
  */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private final AppProperties props;
+    private final JwtService jwt;
+    private final ObjectMapper json;
 
-    public SecurityConfig(AppProperties props) {
+    public SecurityConfig(AppProperties props, JwtService jwt, ObjectMapper json) {
         this.props = props;
+        this.jwt = jwt;
+        this.json = json;
     }
 
     @Bean
@@ -40,7 +47,11 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .httpBasic(b -> b.disable())
-            .formLogin(f -> f.disable());
+            .formLogin(f -> f.disable())
+            .addFilterBefore(new JwtAuthFilter(jwt), UsernamePasswordAuthenticationFilter.class)
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint((req, res, ex) -> write(res, 401, "UNAUTHENTICATED", "Please log in"))
+                .accessDeniedHandler((req, res, ex) -> write(res, 403, "FORBIDDEN", "You don't have permission to do that")));
 
         if (props.security().openDev()) {
             http.authorizeHttpRequests(a -> a.anyRequest().permitAll());
@@ -54,6 +65,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/repos/*/*/**").permitAll() // service checks visibility
                 .anyRequest().authenticated());
         return http.build();
+    }
+
+    private void write(HttpServletResponse res, int status, String code, String message) throws java.io.IOException {
+        res.setStatus(status);
+        res.setContentType("application/json");
+        json.writeValue(res.getOutputStream(), ApiError.of(status, code, message));
     }
 
     @Bean

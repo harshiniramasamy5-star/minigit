@@ -6,7 +6,7 @@
 - `GET /api/v1/dashboard`: repos I own or collaborate on, open PRs on them, recent commits (the empty initial commit is skipped).
 - Graph tab: `/<owner>/<repo>/graph`. Add `?demo=1` to see sample history without a backend.
 
-## Dev login (temporary, until U1 auth is merged)
+## Dev login (temporary, until you switch open-dev off)
 
 While the backend runs with `MINIGIT_OPEN_DEV=true` (the default), `/health` returns `devAuth: true`
 and the login page shows a **Dev mode** box: type an existing username and you're in, no password.
@@ -22,9 +22,7 @@ The frontend then sends `X-Dev-User: <username>` instead of a token (`CurrentUse
 
 ## Needs from teammates
 
-- **Shrejal (U1):** the JWT filter must set an authenticated `Authentication` whose `getName()` is the **username**. `CurrentUser` relies on only that.
-  Until auth exists (open-dev mode only):
-  `curl -H "X-Dev-User: <username>" localhost:8080/api/v1/dashboard`
-- **Shrejal (U2):** when creating a repo, also insert an `OWNER` row in `repo_permissions` (the schema comment expects it). Dashboard works either way.
+- **Shrejal (U1, U2, U9, U11):** done, see `docs/member1-integration.md`. The JWT filter sets an `Authentication` whose `getName()` is the username
+  and repo creation inserts the `OWNER` row. Set `MINIGIT_OPEN_DEV=false` and a real `JWT_SECRET` to turn real auth on.
 - **Arisha (U4):** the graph calls `GET /repos/{owner}/{repo}/graph?limit=200` and expects
   `{ commits: [{hash, parents, message, author, createdAt}], branches: [{name, head}] }`, commits newest first.

@@ -1,10 +1,14 @@
-# MiniGit API contract (draft v0.2, for team review)
+# MiniGit API contract (draft v0.3, for team review)
 
 Base path: `/api/v1`. JSON everywhere except file upload (`multipart/form-data`) and raw file download.
 Auth: `Authorization: Bearer <jwt>` (30-min fixed expiry, no refresh). Hashes are 64-char SHA-256 hex.
 Repos are addressed as `{owner}/{repo}` (username + repo name), like GitHub.
 
 Status for review: **nothing here is final until all four of us OK it.** Change it by PR to this file.
+
+**v0.3 changes (U1/U2/U9/U11 integrated, 2026-10-24):** `INVALID_CREDENTIALS` and `REPO_IN_RECYCLE_BIN` error codes,
+login/lockout rules spelled out, reserved repo names, recycle-bin permissions, branch delete is now a soft delete (U11).
+`GET /repos/{owner}/{repo}/collaborators` needs a role on the repo.
 
 **v0.2 changes (Harshini, 2026-10-24):** PR merge no longer returns conflicts as a 409 (`ApiError` has no
 `sessionId` field), approvals are recorded only, `INVALID_PATH` and `INTERNAL_ERROR` rows added, commit time rule
@@ -22,11 +26,13 @@ added. Two new questions at the bottom.
 | 400 | `VALIDATION_FAILED` | Bean validation failed; see `fieldErrors` |
 | 400 | `INVALID_PATH` | `..`, absolute path, backslash, `.minigit/`, two paths that normalise to the same file, file/folder clash (`a` and `a/b`). `a//b` and `./a` are accepted and normalised. |
 | 401 | `UNAUTHENTICATED` | Missing/expired token |
+| 401 | `INVALID_CREDENTIALS` | Login with an unknown user or wrong password (same message for both) |
 | 403 | `FORBIDDEN` | Role too low (Table 2) |
 | 404 | `NOT_FOUND` | Also used for private repos the caller can't see (don't leak existence) |
 | 409 | `BRANCH_HEAD_MOVED` | Commit on a branch whose head moved since checkout |
 | 409 | `MERGE_IN_PROGRESS` | Action blocked by an open merge session |
-| 409 | `NAME_TAKEN` | Repo/branch name already exists |
+| 409 | `NAME_TAKEN` | Username, email, repo or branch name already exists. A repo or branch name that is in the recycle bin counts as taken (its message says so). |
+| 409 | `REPO_IN_RECYCLE_BIN` | Restoring a branch whose repository is still in the bin |
 | 423 | `ACCOUNT_LOCKED` | 5 failed logins, locked 15 min |
 | 500 | `INTERNAL_ERROR` | Anything unhandled (logged on the server) |
 
@@ -44,6 +50,10 @@ Paged lists: `?page=0&size=20` → `{ "items": [...], "page": 0, "size": 20, "to
 
 No logout endpoint: client drops the token.
 
+Rules: username 3-40 of `A-Za-z0-9_-`; password 8-72 characters; email stored lowercase. The token's expiry is **fixed** at
+30 minutes from login (no refresh, no sliding window), `expiresAt` in the login response says when. 5 wrong passwords lock the
+account for 15 minutes (423 `ACCOUNT_LOCKED`, even the right password is refused meanwhile); success resets the count.
+
 ## U2 Repositories: Shrejal
 
 | Method | Path | Body / notes | Response |
@@ -55,22 +65,29 @@ No logout endpoint: client drops the token.
 | DELETE | `/repos/{owner}/{repo}` | soft delete → recycle bin (Owner) | 204 |
 
 Repo = `{id, owner, name, description, visibility, defaultBranch, myRole, createdAt, updatedAt}`
+(`myRole` is `OWNER`, `WRITE`, `READ` or `null` for guests / non-collaborators of a public repo; `id` is what the
+`/repos/{repoId}/...` branch and merge endpoints take.)
+
+Names: `A-Za-z0-9._-`, 1-100 chars, not `.`/`..`, not ending in `.git`, and not `branches`, `merges`, `mine`, `collaborators`
+(they would collide with other routes). A private repo the caller can't see is a 404, never a 403. Delete and rename are Owner only.
 
 ## U9 Collaborators: Shrejal
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/repos/{owner}/{repo}/collaborators` | | `[{userId, username, role}]` |
-| PUT | `/repos/{owner}/{repo}/collaborators/{username}` | `{role: READ\|WRITE}` (Owner) | `{userId, username, role}` |
+| GET | `/repos/{owner}/{repo}/collaborators` | any role on the repo; owner first (`role: OWNER`) | `[{userId, username, role}]` |
+| PUT | `/repos/{owner}/{repo}/collaborators/{username}` | `{role: READ\|WRITE}` (Owner); adds or changes; the owner's own row can't be changed | `{userId, username, role}` |
 | DELETE | `/repos/{owner}/{repo}/collaborators/{username}` | (Owner) | 204 |
 
 ## U11 Recycle bin: Shrejal
 
 | Method | Path | Notes | Response |
 |---|---|---|---|
-| GET | `/recycle-bin` | my deleted repos + branches | `[{id, itemType, name, repo, deletedAt, expiresAt}]` |
-| POST | `/recycle-bin/{id}/restore` | | 204 |
-| DELETE | `/recycle-bin/{id}` | permanent delete now | 204 |
+| GET | `/recycle-bin` | items I deleted, plus anything deleted from repos I own; `repo` = `owner/name`; expired rows hidden | `[{id, itemType: REPOSITORY\|BRANCH, name, repo, deletedAt, expiresAt}]` |
+| POST | `/recycle-bin/{id}/restore` | repo: owner only; branch: whoever deleted it or the repo owner; 409 `REPO_IN_RECYCLE_BIN` | 204 |
+| DELETE | `/recycle-bin/{id}` | permanent delete now (same permissions); a repo's folder in the file store goes too | 204 |
+
+The `id` is the recycle-bin row id. Items are removed automatically 7 days after deletion (daily job at 03:00).
 
 ## U3 Working copy + commit: Arisha
 
