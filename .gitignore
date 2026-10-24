@@ -20,3 +20,4 @@ minigit-src.zip
 minigit-src/
 minigit-src.zip
 *.zip
+docker-compose.override.yml
