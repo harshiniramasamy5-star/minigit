@@ -32,10 +32,17 @@ jobs:
           MYSQL_DATABASE: minigit_smoke
         ports: ['3306:3306']
         options: >-
-          --health-cmd="mysqladmin ping -proot"
+          --health-cmd="mysqladmin ping -h127.0.0.1 -uroot -proot --silent"
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
       - uses: actions/checkout@v4
+      - name: Wait until MySQL accepts TCP connections
+        run: |
+          for i in $(seq 1 60); do
+            mysql -h127.0.0.1 -uroot -proot -e "SELECT 1" minigit_smoke >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "MySQL never came up"; exit 1
       - name: Apply every migration in order, then the smoke test
         run: |
           for f in $(ls backend/src/main/resources/db/migration/V*__*.sql | sort -V); do
