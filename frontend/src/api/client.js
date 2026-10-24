@@ -8,6 +8,8 @@ import axios from 'axios'
 
 export const TOKEN_KEY = 'minigit.token'
 export const EXPIRES_KEY = 'minigit.expiresAt'
+// Temporary dev login (open-dev mode only, until U1 auth lands). See docs/integration-notes.md.
+export const DEV_USER_KEY = 'minigit.devUser'
 
 export const api = axios.create({ baseURL: '/api/v1', timeout: 20000 })
 
@@ -19,7 +21,13 @@ export const onSessionExpired = (fn) => { expiredListeners.add(fn); return () =>
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY)
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  } else {
+    // The backend only honours this header while minigit.security.open-dev=true.
+    const devUser = localStorage.getItem(DEV_USER_KEY)
+    if (devUser && !config.headers['X-Dev-User']) config.headers['X-Dev-User'] = devUser
+  }
   return config
 })
 

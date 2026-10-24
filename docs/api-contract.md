@@ -138,7 +138,7 @@ PR = `{number, title, description, author, source, target, status: OPEN|MERGED|C
 |---|---|---|---|
 | GET | `/explore?q=&page=` | public repos only, matches name/description | paged Repo |
 | GET | `/dashboard` | my repos, open PRs on my repos, recent commits | `{repos, openPulls, recentCommits}` |
-| GET | `/health` | stack smoke test | `{status, db}` |
+| GET | `/health` | stack smoke test; `devAuth` is true while open-dev mode is on | `{status, db, devAuth}` |
 
 ## Questions to settle in the meeting
 1. Do PR merges reuse `/merges` (one code path), or does U8 call the merge service directly? (Proposed: call the service directly, same result shape.)
