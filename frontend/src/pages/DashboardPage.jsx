@@ -48,6 +48,7 @@ export default function DashboardPage() {
                 <li key={`${pr.repo}#${pr.number}`}>
                   <Link to={`/${pr.repo}/pulls/${pr.number}`} className="hover:underline">{pr.title}</Link>
                   <span className="ml-1 text-muted">#{pr.number}</span>
+                  <span className="block text-xs text-muted">{pr.repo} · {pr.source} → {pr.target}</span>
                 </li>
               ))}
             </ul>
@@ -58,8 +59,9 @@ export default function DashboardPage() {
           {data?.recentCommits?.length ? (
             <ul className="mt-2 space-y-2 text-sm">
               {data.recentCommits.map((c) => (
-                <li key={c.hash}>
-                  <span className="hash">{c.hash.slice(0, 7)}</span> {c.message}
+                <li key={`${c.repo}:${c.hash}`}>
+                  <Link to={`/${c.repo}/commits/${c.hash}`} className="hash hover:underline">{c.hash.slice(0, 7)}</Link> {c.message}
+                  <span className="block text-xs text-muted">{c.repo} · {c.author}</span>
                 </li>
               ))}
             </ul>

@@ -14,3 +14,9 @@ frontend/dist/
 .env
 backend/src/main/resources/application-local.yml
 minigit-data/
+minigit-src/
+minigit-src.zip
+*.zip
+minigit-src/
+minigit-src.zip
+*.zip

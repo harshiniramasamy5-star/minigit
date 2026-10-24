@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Placeholder from './components/Placeholder'
 import DashboardPage from './pages/DashboardPage'
 import ExplorePage from './pages/ExplorePage'
+import GraphPage from './pages/GraphPage'
 import LoginPage from './pages/LoginPage'
 import RepoLayout from './pages/RepoLayout'
 import NotFoundPage from './pages/NotFoundPage'
@@ -25,7 +26,7 @@ export default function App() {
           <Route index element={<Placeholder title="Files + working copy" owner="Arisha" useCase="U3" />} />
           <Route path="commits" element={<Placeholder title="History, diff, restore" owner="Arisha" useCase="U4" />} />
           <Route path="commits/:hash" element={<Placeholder title="Commit detail" owner="Arisha" useCase="U4" />} />
-          <Route path="graph" element={<Placeholder title="Commit graph" owner="Harshini" useCase="U4 UI" />} />
+          <Route path="graph" element={<GraphPage />} />
           <Route path="branches" element={<Placeholder title="Branches + undo" owner="Aakriti" useCase="U5, U10" />} />
           <Route path="merges/:sessionId" element={<Placeholder title="Resolve conflicts" owner="Aakriti" useCase="U6, U7" />} />
           <Route path="pulls" element={<Placeholder title="Pull requests" owner="Arisha" useCase="U8" />} />
