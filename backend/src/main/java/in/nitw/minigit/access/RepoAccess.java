@@ -38,9 +38,9 @@ public class RepoAccess {
         return names.isEmpty() ? "user-" + userId : names.get(0);
     }
 
-    /** Throws 404 if the repo doesn't exist, 403 if the user's role is below {@code needed}. */
+    /** Throws 404 if the repo doesn't exist or is in the recycle bin, 403 if the user's role is below {@code needed}. */
     public void require(long repoId, long userId, Level needed) {
-        List<Long> owners = jdbc.queryForList("SELECT owner_id FROM repositories WHERE id = ?", Long.class, repoId);
+        List<Long> owners = jdbc.queryForList("SELECT owner_id FROM repositories WHERE id = ? AND deleted_at IS NULL", Long.class, repoId);
         if (owners.isEmpty()) {
             throw new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Repository not found");
         }
