@@ -37,7 +37,7 @@ and the other bin rows, then the folder under the storage root is removed). Bran
 ## Known gaps
 - `RepoAccess` still doesn't give guests or non-collaborators read access to **public** repos on the `/repos/{repoId}/...` endpoints
   (the `{owner}/{repo}` read does). Arisha's read endpoints need this.
-- In-memory merge sessions of a purged repo aren't cleared (they expire after 1 hour).
+- Merge sessions of a purged repo are removed with it (ON DELETE CASCADE).
 - `DELETE /repos/{repoId}/branches?name=` and `/repos/{repoId}/...` differ from the contract's `/repos/{owner}/{repo}/branches/{name}`.
   Same for merges. Pick one before the frontend wires branches.
 - No Java test covers the SQL in `RepoService`/`RecycleBinService`; the statements were run by hand against the V1 schema in MySQL 8.0.

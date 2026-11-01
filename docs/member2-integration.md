@@ -33,7 +33,7 @@ controller layer on top of it, using only the V1 tables.
 - Limits are placeholders until V-01..V-09 are confirmed: 10 MB per file (`WorktreeService.MAX_FILE_BYTES`).
 
 ## Known gaps
-- Merge sessions live in memory (Aakriti's design): a restart or an hour of waiting ends them, and the conflict page says so.
+- Merge sessions are stored in `merge_sessions` / `merge_conflicts` (they survive a restart). A session expires after an hour; the conflict page says so.
 - Undo moves the branch head; if your working copy is on that branch it shows the "branch has new commits" banner, so use Discard changes.
 - A merged PR shows its merge commit but not an inline diff (the schema doesn't keep the old target head).
 - No test boots the whole app: the file logic has unit tests, the SQL was run by hand against the V1 schema.

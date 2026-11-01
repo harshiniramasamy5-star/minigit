@@ -75,7 +75,7 @@ export default function ConflictPage() {
       <div className="rounded-lg border border-line bg-white p-6 text-sm">
         <p className="font-medium">This merge session isn't available.</p>
         <p className="mt-1 text-muted">{error.status === 404
-          ? 'Sessions end when they are finished or aborted, after an hour, or when the server restarts. Start the merge again.'
+          ? 'Sessions end when they are finished or aborted, or after an hour. Start the merge again.'
           : error.message}</p>
       </div>
     )

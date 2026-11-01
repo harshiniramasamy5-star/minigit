@@ -20,13 +20,21 @@ public final class MergeSession {
     private final long startedBy;
     private final String sourceBranch, targetBranch;
     private final String oursHash, theirsHash, baseHash;
-    private final Instant startedAt = Instant.now();
+    private final Instant startedAt;
     private final Map<String, byte[]> merged = new TreeMap<>();
     private final Map<String, FileConflict> conflicts = new TreeMap<>();
 
     public MergeSession(String id, long repoId, long startedBy, String sourceBranch, String targetBranch,
                         String oursHash, String theirsHash, String baseHash,
                         Map<String, byte[]> clean, Map<String, FileConflict> conflicts) {
+        this(id, repoId, startedBy, sourceBranch, targetBranch, oursHash, theirsHash, baseHash,
+                clean, conflicts, Instant.now());
+    }
+
+    public MergeSession(String id, long repoId, long startedBy, String sourceBranch, String targetBranch,
+                        String oursHash, String theirsHash, String baseHash,
+                        Map<String, byte[]> clean, Map<String, FileConflict> conflicts, Instant startedAt) {
+        this.startedAt = startedAt;
         this.id = id;
         this.repoId = repoId;
         this.startedBy = startedBy;
@@ -81,6 +89,22 @@ public final class MergeSession {
         if (value == null) merged.remove(path);
         else merged.put(path, value.clone());
         conflicts.remove(path);
+    }
+
+    /**
+     * Re-applies a stored resolution when a session is loaded back from the database.
+     * value == null means the file is deleted. Unknown paths are ignored.
+     */
+    synchronized void resolveRaw(String path, byte[] value) {
+        if (conflicts.remove(path) == null) return;
+        if (value == null) merged.remove(path);
+        else merged.put(path, value.clone());
+    }
+
+    /** What the merge commit will contain for this path right now (null = deleted or not set). */
+    synchronized byte[] resolvedValue(String path) {
+        byte[] v = merged.get(path);
+        return v == null ? null : v.clone();
     }
 
     /** Final file set for the merge commit. Throws if anything is still unresolved. */

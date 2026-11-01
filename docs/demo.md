@@ -1,7 +1,7 @@
 # MiniGit mini demo (what works today)
 
 Shows the parts that are already built: the frontend shell, dev login, explore, dashboard, health and the
-commit graph. Everything else is a placeholder page labelled with its owner until U1–U11 land.
+commit graph. The repo pages (Code, Commits, Branches, PRs, Settings) are real pages now too.
 
 ## 1. Start the stack (3 terminals, from the repo root)
 
@@ -37,7 +37,7 @@ to Shrejal that you can read, one deleted), commits, branches and three PRs (two
 | 4 | Dashboard → open PRs | #1 and #2 on `minigit-demo`. The closed #3 is hidden. |
 | 5 | Dashboard → recent commits | 9 commits across repos, newest first. The empty "Initial commit" of each repo is skipped. |
 | 6 | `localhost:5173/harshini/minigit-demo/graph?demo=1` | Commit graph with branches and a merge (sample data until Arisha's `/graph` endpoint exists). |
-| 7 | Other repo tabs (Files, Commits, Branches, PRs, Settings) | Placeholder pages showing who owns each use case. That's the route map for the team. |
+| 7 | Other repo tabs (Files, Commits, Branches, PRs, Settings) | Real pages for U2–U11 (code and commits, branches and merge, pull requests, collaborators and settings). |
 | 8 | `localhost:8080/api/v1/health` | `{status, db, devAuth}`: the stack smoke test. |
 
 ## Reset

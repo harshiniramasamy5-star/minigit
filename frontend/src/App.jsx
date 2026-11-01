@@ -1,7 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
-import Placeholder from './components/Placeholder'
 import DashboardPage from './pages/DashboardPage'
 import ExplorePage from './pages/ExplorePage'
 import GraphPage from './pages/GraphPage'
@@ -21,7 +20,7 @@ import RecycleBinPage from './pages/RecycleBinPage'
 import RegisterPage from './pages/RegisterPage'
 import RepoSettingsPage from './pages/RepoSettingsPage'
 
-// Route map = who plugs in where. Swap a <Placeholder> for your real page in your feature branch.
+// Route map. Repo pages are nested under :owner/:repo.
 export default function App() {
   return (
     <Routes>
