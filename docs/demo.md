@@ -10,7 +10,7 @@ commit graph. The repo pages (Code, Commits, Branches, PRs, Settings) are real p
 docker compose up -d
 
 # Terminal 2: backend (Flyway creates the tables on first start)
-cd backend && mvn spring-boot:run          # wait for "Started MiniGitApplication"
+cd backend && MINIGIT_OPEN_DEV=true mvn spring-boot:run   # wait for "Started MiniGitApplication"; open-dev lets you log in as the seeded users
 
 # Terminal 3: frontend
 cd frontend && npm install && npm run dev  # http://localhost:5173

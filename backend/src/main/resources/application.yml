@@ -26,9 +26,9 @@ minigit:
   storage:
     root: ${MINIGIT_STORAGE_ROOT:./minigit-data/repos}   # one directory per repository
   security:
-    # true = every /api/v1 endpoint is open (dev only, until the JWT filter lands).
-    # Set to false once U1 is merged.
-    open-dev: ${MINIGIT_OPEN_DEV:true}
+    # false (default) = real JWT login (U1). true = every /api/v1 endpoint is open and the
+    # X-Dev-User header / Dev mode login box work. For local demos only: MINIGIT_OPEN_DEV=true
+    open-dev: ${MINIGIT_OPEN_DEV:false}
   cors:
     allowed-origins: ${MINIGIT_CORS:http://localhost:5173}
   jwt:

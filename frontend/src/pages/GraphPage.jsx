@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import CommitGraph from '../components/CommitGraph'
 
 // U4 UI (Harshini). Data: GET /repos/{owner}/{repo}/graph?limit=200 (Arisha's endpoint).
-// Add ?demo=1 to the URL to see sample history before that endpoint exists.
+// Add ?demo=1 to the URL to see sample history (for screenshots and demos).
 export default function GraphPage() {
   const { owner, repo } = useParams()
   const [params] = useSearchParams()
@@ -24,7 +24,7 @@ export default function GraphPage() {
     return (
       <p className="text-sm text-muted">
         {error.status === 404
-          ? "No history to show. Either this repository doesn't exist or the history endpoint isn't live yet."
+          ? "No history to show. This repository doesn't exist or you don't have access to it."
           : error.message}
       </p>
     )
