@@ -6,9 +6,9 @@
 - `GET /api/v1/dashboard`: repos I own or collaborate on, open PRs on them, recent commits (the empty initial commit is skipped).
 - Graph tab: `/<owner>/<repo>/graph`. Add `?demo=1` to see sample history without a backend.
 
-## Dev login (temporary, until you switch open-dev off)
+## Dev login (off by default; for local demos only)
 
-While the backend runs with `MINIGIT_OPEN_DEV=true` (the default), `/health` returns `devAuth: true`
+Open-dev mode is off by default, so real register and login (JWT) are used. If you start the backend with `MINIGIT_OPEN_DEV=true`, `/health` returns `devAuth: true`
 and the login page shows a **Dev mode** box: type an existing username and you're in, no password.
 The frontend then sends `X-Dev-User: <username>` instead of a token (`CurrentUser` already accepts it in open-dev only).
 
