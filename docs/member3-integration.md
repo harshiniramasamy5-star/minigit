@@ -30,7 +30,7 @@ Errors: 409 BRANCH_HEAD_MOVED, MERGE_IN_PROGRESS, MERGE_CONFLICT, NOTHING_TO_UND
 - U8 PRs: call `mergeService.merge(...)`; status MERGED / FAST_FORWARD / UP_TO_DATE means mark the PR MERGED.
 
 ## Known gaps
-- Merge sessions and undo stacks are in memory (lost on restart; sessions expire after 1 h).
+- Merge sessions (`merge_sessions` / `merge_conflicts`) and undo stacks (`undo_actions`) are stored in the database and survive a restart. Sessions expire after 1 h.
 - Branch delete is a hard delete; recycle bin (U11) should take over.
 - Checkout doesn't check for uncommitted working-copy changes (that state belongs to U3).
 - Public-repo read access for guests is not handled in `RepoAccess`.

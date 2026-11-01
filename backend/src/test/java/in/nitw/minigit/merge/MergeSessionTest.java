@@ -50,4 +50,16 @@ class MergeSessionTest {
         assertFalse(c.binary());
         assertEquals("theirs", c.theirsText());
     }
+
+    @Test void storedResolutionsCanBeReplayed() {
+        MergeSession s = session();
+        s.resolveRaw("a.txt", b("stored"));   // e.g. a MANUAL row loaded from the database
+        s.resolveRaw("d.txt", null);          // a stored "deleted"
+        s.resolveRaw("unknown.txt", b("x"));  // unknown paths are ignored
+        Map<String, byte[]> f = s.finalFiles();
+        assertEquals("stored", new String(f.get("a.txt"), StandardCharsets.UTF_8));
+        assertFalse(f.containsKey("d.txt"));
+        assertFalse(f.containsKey("unknown.txt"));
+        assertArrayEquals(b("stored"), s.resolvedValue("a.txt"));
+    }
 }

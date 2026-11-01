@@ -66,7 +66,7 @@ Each module goes end to end: entity → repository → service → controller �
 - `useToast()` gives `toast.success('Branch created')`.
 - `useAuth()` gives `{ user, login, logout }`.
 - Tailwind tokens: `commit` (primary), `merged`, `conflict`, `danger`, `ink`, `muted`, `line`, `paper`. Classes: `btn-primary`, `btn-secondary`, `btn-danger`, `input`, `hash`.
-- Your page mounts where its `<Placeholder>` is in `src/App.jsx`.
+- Routes are in `src/App.jsx`; add your page there.
 
 ## Git workflow
 
