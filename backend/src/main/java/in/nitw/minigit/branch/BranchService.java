@@ -1,5 +1,6 @@
 package in.nitw.minigit.branch;
 
+import in.nitw.minigit.commit.WorktreeService;
 import in.nitw.minigit.common.ApiException;
 import in.nitw.minigit.storage.RepoObjectStores;
 import in.nitw.minigit.undo.UndoService;
@@ -21,11 +22,13 @@ public class BranchService {
     private final BranchStore branches;
     private final RepoObjectStores stores;
     private final UndoService undo;
+    private final WorktreeService worktree;
 
-    public BranchService(BranchStore branches, RepoObjectStores stores, UndoService undo) {
+    public BranchService(BranchStore branches, RepoObjectStores stores, UndoService undo, WorktreeService worktree) {
         this.branches = branches;
         this.stores = stores;
         this.undo = undo;
+        this.worktree = worktree;
     }
 
     public List<BranchView> list(long repoId) {
@@ -49,12 +52,13 @@ public class BranchService {
         return new BranchView(name, start, false);
     }
 
-    /** Makes the user's working copy match the branch head exactly (stale files removed). */
+    /**
+     * Makes the user's working copy match the branch head exactly (stale files removed) and records which
+     * branch it is on. Refuses with 409 WORKTREE_DIRTY while there are uncommitted changes (U3 owns that state).
+     */
     public String checkout(long repoId, long userId, String name) {
-        String head = require(repoId, name).headCommitHash();
-        Map<String, byte[]> snapshot = stores.history(repoId).snapshot(head);
-        WorktreeSync.sync(snapshot, stores.worktree(repoId, userId));
-        return head;
+        require(repoId, name);
+        return worktree.checkout(repoId, userId, name, name);
     }
 
     public void delete(long repoId, long userId, String name) {

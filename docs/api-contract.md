@@ -1,10 +1,18 @@
-# MiniGit API contract (draft v0.3, for team review)
+# MiniGit API contract (draft v0.5, for team review)
 
 Base path: `/api/v1`. JSON everywhere except file upload (`multipart/form-data`) and raw file download.
 Auth: `Authorization: Bearer <jwt>` (30-min fixed expiry, no refresh). Hashes are 64-char SHA-256 hex.
 Repos are addressed as `{owner}/{repo}` (username + repo name), like GitHub.
 
 Status for review: **nothing here is final until all four of us OK it.** Change it by PR to this file.
+
+**v0.5 changes (U8 built, 2026-10-24):** pull request shapes as built (`{pr, diff, comments}` detail), `PR_NOT_OPEN` /
+`PR_EXISTS` / `NOTHING_TO_MERGE` codes, list defaults to `OPEN` (`status=ALL` for everything), close allowed for the author,
+question 5 settled (a merge event marks the PR MERGED).
+
+**v0.4 changes (U3/U4 built, 2026-10-24):** worktree state carries `files`/`headMoved`, new `GET /worktree/file`,
+`WORKTREE_DIRTY` / `NOTHING_TO_COMMIT` / `NOTHING_TO_RESTORE` codes, `/tree` and `/diff` response shapes as built,
+`GET /branches` for readers, restore = new commit (question 2 settled).
 
 **v0.3 changes (U1/U2/U9/U11 integrated, 2026-10-24):** `INVALID_CREDENTIALS` and `REPO_IN_RECYCLE_BIN` error codes,
 login/lockout rules spelled out, reserved repo names, recycle-bin permissions, branch delete is now a soft delete (U11).
@@ -30,7 +38,11 @@ added. Two new questions at the bottom.
 | 403 | `FORBIDDEN` | Role too low (Table 2) |
 | 404 | `NOT_FOUND` | Also used for private repos the caller can't see (don't leak existence) |
 | 409 | `BRANCH_HEAD_MOVED` | Commit on a branch whose head moved since checkout |
+| 400 | `NOTHING_TO_MERGE` | Opening a pull request whose source has nothing the target doesn't already have |
+| 409 | `PR_NOT_OPEN` / `PR_EXISTS` | Acting on a merged or closed pull request / an open pull request for that branch pair already exists |
+| 400 | `NOTHING_TO_COMMIT` / `NOTHING_TO_RESTORE` | The working copy equals its base commit / the branch already matches that version |
 | 409 | `MERGE_IN_PROGRESS` | Action blocked by an open merge session |
+| 409 | `WORKTREE_DIRTY` | Switching branch, or restoring onto the branch you are on, while you have uncommitted changes |
 | 409 | `NAME_TAKEN` | Username, email, repo or branch name already exists. A repo or branch name that is in the recycle bin counts as taken (its message says so). |
 | 409 | `REPO_IN_RECYCLE_BIN` | Restoring a branch whose repository is still in the bin |
 | 423 | `ACCOUNT_LOCKED` | 5 failed logins, locked 15 min |
@@ -93,11 +105,12 @@ The `id` is the recycle-bin row id. Items are removed automatically 7 days after
 
 | Method | Path | Body / notes | Response |
 |---|---|---|---|
-| GET | `/repos/{owner}/{repo}/worktree` | my working copy state | `{branch, baseCommit, changes: [{path, status: ADDED\|MODIFIED\|DELETED}]}` |
-| POST | `/repos/{owner}/{repo}/worktree/checkout` | `{branch}` | worktree state |
+| GET | `/repos/{owner}/{repo}/worktree` | my working copy state (first call checks out the default branch); Write | `{branch, baseCommit, headCommit, headMoved, changes: [{path, status: ADDED\|MODIFIED\|DELETED}], files: [{path, size}]}` |
+| POST | `/repos/{owner}/{repo}/worktree/checkout` | `{branch}`; 409 `WORKTREE_DIRTY` if uncommitted changes | worktree state |
+| GET | `/repos/{owner}/{repo}/worktree/file?path=` | current content of one working-copy file (Write) | raw bytes |
 | PUT | `/repos/{owner}/{repo}/worktree/files` | multipart `path`, `file` (Write) | 204 |
 | DELETE | `/repos/{owner}/{repo}/worktree/files?path=` | (Write) | 204 |
-| POST | `/repos/{owner}/{repo}/worktree/discard` | reset to branch head | 204 |
+| POST | `/repos/{owner}/{repo}/worktree/discard` | throw away changes, move to the branch's current head (how you recover from `BRANCH_HEAD_MOVED`) | 204 |
 | POST | `/repos/{owner}/{repo}/commits` | `{message, newBranch?}`; 409 `BRANCH_HEAD_MOVED` unless `newBranch` given | 201 Commit |
 
 ## U4 History, diff, restore: Arisha
@@ -106,10 +119,10 @@ The `id` is the recycle-bin row id. Items are removed automatically 7 days after
 |---|---|---|---|
 | GET | `/repos/{owner}/{repo}/commits?branch=` | paged, newest first | paged Commit |
 | GET | `/repos/{owner}/{repo}/commits/{hash}` | | Commit + `files: [{path, status}]` |
-| GET | `/repos/{owner}/{repo}/tree?ref=&path=` | `ref` = branch or hash | `[{name, type: FILE\|DIR, blobHash?}]` |
+| GET | `/repos/{owner}/{repo}/tree?ref=&path=` | `ref` = branch or hash (default: default branch), `path` = folder; folders first | `[{name, type: FILE\|DIR, size}]` |
 | GET | `/repos/{owner}/{repo}/blob?ref=&path=` | raw bytes, `text/plain` or `application/octet-stream` | file |
-| GET | `/repos/{owner}/{repo}/diff?from=&to=` | Myers diff | `[{path, status, hunks: [{oldStart, oldLines, newStart, newLines, lines: [{type: CONTEXT\|ADD\|DEL, text}]}]}]` |
-| POST | `/repos/{owner}/{repo}/restore` | `{branch, commit, path?}`; whole commit or one file (Write) | 201 Commit |
+| GET | `/repos/{owner}/{repo}/diff?from=&to=` | Myers diff; `from` may be blank (compare with an empty project); refs are branch or hash | `[{path, status: ADDED\|DELETED\|MODIFIED, binary, lines: [{type: EQUAL\|INSERT\|DELETE, text}]}]` (binary or >1 MB files have `binary: true` and no lines; the UI folds long EQUAL runs) |
+| POST | `/repos/{owner}/{repo}/restore` | `{branch, commit, path?}`; whole commit or one file; creates a **new commit** on the branch (Write); 409 `WORKTREE_DIRTY` if your working copy is on that branch and dirty | 201 Commit |
 | GET | `/repos/{owner}/{repo}/graph?limit=200` | for the commit graph (Harshini's UI) | `{commits: [{hash, parents, message, author, createdAt}], branches: [{name, head}]}` |
 
 Commit = `{hash, treeHash, parents: [hash], author, message, createdAt}`
@@ -123,7 +136,7 @@ match (millisecond precision). Don't rely on the column default. File paths go t
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/repos/{owner}/{repo}/branches` | | `[{name, head, isProtected, isDefault}]` |
+| GET | `/repos/{owner}/{repo}/branches` | any reader, guests on public repos (built in U4's controller); default branch first | `[{name, head, isProtected, isDefault}]` |
 | POST | `/repos/{owner}/{repo}/branches` | `{name, fromRef}` (Write) | 201 Branch |
 | DELETE | `/repos/{owner}/{repo}/branches/{name}` | → recycle bin; `main` blocked (Write) | 204 |
 
@@ -151,19 +164,20 @@ Branch names with `/` (e.g. `feat/login`) are URL-encoded in the path.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/repos/{owner}/{repo}/pulls?status=OPEN` | | paged PR |
-| POST | `/repos/{owner}/{repo}/pulls` | `{title, description?, source, target}` (Write) | 201 PR |
-| GET | `/repos/{owner}/{repo}/pulls/{number}` | | PR + `diff`, `comments`, `approvals` |
-| POST | `/repos/{owner}/{repo}/pulls/{number}/comments` | `{body}` (Read) | 201 comment |
+| GET | `/repos/{owner}/{repo}/pulls?status=OPEN` | `status` = OPEN (default), MERGED, CLOSED or ALL; newest first; anyone who can read the repo | paged PR |
+| POST | `/repos/{owner}/{repo}/pulls` | `{title, description?, source, target}` (Write); title <= 200, description <= 5000; branches must differ and exist | 201 PR |
+| GET | `/repos/{owner}/{repo}/pulls/{number}` | `diff` = what the merge would bring in (merge base to source head), only while OPEN; merged PRs link to `mergeCommit` | `{pr, diff: [same as /diff], comments: [{id, author, body, createdAt}]}` |
+| POST | `/repos/{owner}/{repo}/pulls/{number}/comments` | `{body}` (any role on the repo; PR must be OPEN) | 201 `{id, author, body, createdAt}` |
 | POST | `/repos/{owner}/{repo}/pulls/{number}/approve` | not the author, PR must be OPEN; approving twice is a no-op (Write) | 204 |
 | POST | `/repos/{owner}/{repo}/pulls/{number}/merge` | runs U6, approval **not** required (Write) | `{result: UP_TO_DATE\|FAST_FORWARD\|MERGED\|CONFLICTS, commit?, sessionId?, pr}` |
-| POST | `/repos/{owner}/{repo}/pulls/{number}/close` | | PR |
+| POST | `/repos/{owner}/{repo}/pulls/{number}/close` | PR must be OPEN; Write access or the PR's author | PR |
 
-PR = `{number, title, description, author, source, target, status: OPEN|MERGED|CLOSED, approvals: [username], createdAt, closedAt?}`
+PR = `{number, title, description, author, source, target, status: OPEN|MERGED|CLOSED, approvals: [username], createdAt, closedAt?, mergeCommit?}`
 
 There is no `APPROVED` status. Approving adds a row to `pr_approvals` and the PR stays `OPEN` (SRS v1.2: approval
 recorded, not required to merge). On `CONFLICTS` the PR stays `OPEN`; the user resolves through
-`/merges/{sessionId}` and the PR becomes `MERGED` when that session completes.
+`/merges/{sessionId}` and the PR becomes `MERGED` when that session completes (`MergeService` publishes a `BranchesMerged` event
+that U8 listens to, so any merge of that branch pair marks the matching open PR merged).
 
 ## Harshini: explore, dashboard, health
 
@@ -175,9 +189,7 @@ recorded, not required to merge). On `CONFLICTS` the PR stays `OPEN`; the user r
 
 ## Questions to settle in the meeting
 1. Do PR merges reuse `/merges` (one code path), or does U8 call the merge service directly? (Proposed: call the service directly, same result shape.)
-2. Restore = new commit on the branch (proposed) or move the head back? Undo already covers "move back".
+2. ~~Restore = new commit or head move?~~ Built as a new commit (history is kept, undo steps back). Say so if the team wants the other.
 3. Max upload size, max files per commit, max repo size: depends on V-01..V-09.
 4. Who owns U10 (undo)? This file says Aakriti; the SRS v1.2 review assigned U10 and U11 to Shrejal (still to confirm).
-5. When a PR merge hits conflicts and the session is completed through `/merges/{sessionId}/complete`, which code
-   marks the PR `MERGED`: the U6 service (needs to know the PR) or a U8 hook? Proposed: `merge_sessions` gets an
-   optional `pr_id` in a V2 migration.
+5. ~~Which code marks the PR MERGED after a conflict session?~~ Settled: a `BranchesMerged` event from `MergeService`, no schema change.
