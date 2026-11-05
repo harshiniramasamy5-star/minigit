@@ -36,6 +36,19 @@ export default function CommitDetailPage() {
     }).catch(() => {})
   }, [base])
 
+  const revert = async () => {
+    setBusy(true)
+    try {
+      const { data } = await api.post(`${base}/commits/${hash}/revert`, { branch: target })
+      toast.success(`Reverted on ${target} as ${shortHash(data.hash)}`)
+      setArmed(null)
+    } catch {
+      // the API client showed the error (conflict with later changes, protected branch, uncommitted changes)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const restore = async (path) => {
     setBusy(true)
     try {
@@ -85,6 +98,19 @@ export default function CommitDetailPage() {
             </select>
             {restoreButton('ALL', 'Restore all files')}
           </div>
+          {c.parents.length === 1 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+              <p className="text-xs text-muted">Revert adds a new commit on {target} that undoes the changes of this commit. You can undo it.</p>
+              {armed === 'REVERT' ? (
+                <span className="inline-flex gap-2">
+                  <button className="btn-danger px-2 py-1 text-xs" disabled={busy} onClick={revert}>Revert on {target}</button>
+                  <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setArmed(null)}>Cancel</button>
+                </span>
+              ) : (
+                <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setArmed('REVERT')}>Revert this commit</button>
+              )}
+            </div>
+          )}
         </section>
       )}
 

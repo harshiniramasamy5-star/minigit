@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import WorkingCopyPanel from '../components/WorkingCopyPanel'
-import { useRepo } from '../lib/useRepo'
+import { shortHash, useRepo, when } from '../lib/useRepo'
 
 // U3 + U4: browse the committed files of a branch (anyone who can read the repo) and, with Write access,
 // edit your working copy and commit.
@@ -15,6 +15,8 @@ export default function CodePage() {
   const [file, setFile] = useState(null)       // { path, text } or { path, binary: true }
   const [error, setError] = useState(null)
   const [reload, setReload] = useState(0)
+  const [showBlame, setShowBlame] = useState(false)
+  const [blameData, setBlameData] = useState(null)   // null = loading, { lines } or { error }
   const base = `/repos/${owner}/${name}`
   const ref = params.get('ref') || repo?.defaultBranch
   const path = params.get('path') || ''
@@ -39,6 +41,15 @@ export default function CodePage() {
       .then((r) => setFile({ path: open, text: r.headers['content-type']?.startsWith('text/') ? r.data : null }))
       .catch(() => setFile({ path: open, text: null }))
   }, [base, ref, open, reload])
+
+  useEffect(() => { setShowBlame(false); setBlameData(null) }, [ref, open])
+
+  useEffect(() => {
+    if (!showBlame || !repo || !open || !ref) return
+    setBlameData(null)
+    api.get(`/repos/${repo.id}/blame`, { params: { ref, path: open }, silent: true })
+      .then((r) => setBlameData(r.data)).catch((e) => setBlameData({ error: e.message }))
+  }, [showBlame, repo, ref, open, reload])
 
   if (repoError) return <p className="text-sm text-danger">{repoError.message}</p>
   if (!repo) return <p className="text-sm text-muted">Loading…</p>
@@ -98,17 +109,57 @@ export default function CodePage() {
         <section className="overflow-hidden rounded-lg border border-line bg-white" aria-label={`File ${file.path}`}>
           <header className="flex items-center border-b border-line bg-paper px-3 py-2 text-sm">
             <span className="font-mono">{file.path}</span>
-            <button className="ml-auto text-muted hover:text-ink" onClick={() => to(path ? { path } : {})}>Close</button>
+            <span className="ml-auto flex gap-3">
+              {file.text !== null && (
+                <button className="text-commit hover:underline" onClick={() => setShowBlame((v) => !v)}>
+                  {showBlame ? 'Hide blame' : 'Blame'}
+                </button>
+              )}
+              <button className="text-muted hover:text-ink" onClick={() => to(path ? { path } : {})}>Close</button>
+            </span>
           </header>
           {file.text === null
             ? <p className="p-3 text-sm text-muted">Binary file, no preview.</p>
-            : <pre className="overflow-x-auto p-3 font-mono text-xs leading-5">{file.text}</pre>}
+            : showBlame
+              ? <BlameTable data={blameData} />
+              : <pre className="overflow-x-auto p-3 font-mono text-xs leading-5">{file.text}</pre>}
         </section>
       )}
 
       {canWrite && (
         <WorkingCopyPanel owner={owner} name={name} branches={branches} onCommitted={() => setReload((n) => n + 1)} />
       )}
+    </div>
+  )
+}
+
+// Git blame: author, commit and date next to each line. The label is shown once per run of lines from the same commit.
+function BlameTable({ data }) {
+  if (!data) return <p className="p-3 text-sm text-muted">Loading blame…</p>
+  if (data.error) return <p className="p-3 text-sm text-danger">{data.error}</p>
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse font-mono text-xs leading-5">
+        <tbody>
+          {data.lines.map((l, i) => {
+            const first = i === 0 || data.lines[i - 1].commit !== l.commit
+            return (
+              <tr key={l.line} className={first && i > 0 ? 'border-t border-line' : ''}>
+                <td className="w-64 whitespace-nowrap px-3 align-top text-muted" title={l.message}>
+                  {first && (
+                    <>
+                      <Link to={`commits/${l.commit}`} className="hash hover:underline">{shortHash(l.commit)}</Link>
+                      {' '}{l.author} · {when(l.time)}
+                    </>
+                  )}
+                </td>
+                <td className="w-10 select-none px-2 text-right align-top text-muted">{l.line}</td>
+                <td className="whitespace-pre pr-3">{l.text}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

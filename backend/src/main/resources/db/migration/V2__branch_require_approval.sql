@@ -1,0 +1,2 @@
+ALTER TABLE branches
+  ADD COLUMN require_approval BOOLEAN NOT NULL DEFAULT FALSE;

@@ -1,5 +1,6 @@
 package in.nitw.minigit.merge;
 
+import in.nitw.minigit.branch.BranchProtection;
 import in.nitw.minigit.branch.BranchStore;
 import in.nitw.minigit.branch.CommitRows;
 import in.nitw.minigit.common.ApiException;
@@ -54,10 +55,13 @@ public class MergeService {
     private final UndoService undo;
     private final ApplicationEventPublisher events;
     private final MergeSessionStore sessions;
+    private final BranchProtection protection;
 
     public MergeService(RepoObjectStores stores, BranchStore branches, CommitRows commitRows, UndoService undo,
-                        ApplicationEventPublisher events, MergeSessionStore sessions) {
+                        ApplicationEventPublisher events, MergeSessionStore sessions,
+                        BranchProtection protection) {
         this.sessions = sessions;
+        this.protection = protection;
         this.stores = stores;
         this.branches = branches;
         this.commitRows = commitRows;
@@ -135,6 +139,10 @@ public class MergeService {
     @Transactional
     public String finish(long repoId, long userId, String authorName, String sessionId, String message) {
         MergeSession s = require(repoId, sessionId);
+        if (protection.isRequired(repoId, s.targetBranch())
+                && !protection.hasApprovedOpenPr(repoId, s.sourceBranch(), s.targetBranch())) {
+            throw BranchProtection.needsApproval(s.targetBranch());
+        }
         if (!s.unresolved().isEmpty()) {
             throw new ApiException(HttpStatus.CONFLICT, "MERGE_CONFLICT", "Unresolved files: " + s.unresolved());
         }

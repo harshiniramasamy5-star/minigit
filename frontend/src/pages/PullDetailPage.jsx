@@ -19,11 +19,18 @@ export default function PullDetailPage() {
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
   const [conflict, setConflict] = useState(null)   // session id when a merge hit conflicts
+  const [needsRule, setNeedsRule] = useState(false) // target branch requires an approved pull request
 
   const load = useCallback(() => {
     api.get(base, { silent: true }).then((r) => { setData(r.data); setError(null) }).catch(setError)
   }, [base])
   useEffect(load, [load])
+
+  useEffect(() => {
+    if (!repo || !data) return
+    api.get(`/repos/${repo.id}/branches/protection`, { silent: true })
+      .then((r) => setNeedsRule(r.data.includes(data.pr.target))).catch(() => setNeedsRule(false))
+  }, [repo, data])
 
   const run = async (fn) => {
     setBusy(true)
@@ -53,6 +60,7 @@ export default function PullDetailPage() {
   const open = pr.status === 'OPEN'
   const isAuthor = user?.username === pr.author
   const approvedByMe = pr.approvals.includes(user?.username)
+  const blocked = needsRule && !pr.approvals.some((a) => a !== pr.author)
 
   return (
     <div className="space-y-6">
@@ -72,7 +80,9 @@ export default function PullDetailPage() {
       <section className="rounded-lg border border-line bg-white p-4" aria-labelledby="review">
         <h3 id="review" className="text-sm font-semibold">Review</h3>
         <p className="mt-1 text-sm text-muted">
-          {pr.approvals.length ? `Approved by ${pr.approvals.join(', ')}.` : 'No approvals yet.'} Approval is recorded but not required to merge.
+          {pr.approvals.length ? `Approved by ${pr.approvals.join(', ')}.` : 'No approvals yet.'} {needsRule
+            ? `${pr.target} is protected: it needs one approval from someone other than the author.`
+            : 'Approval is recorded but not required to merge.'}
         </p>
         {open && canWrite && (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -80,7 +90,8 @@ export default function PullDetailPage() {
               title={isAuthor ? 'You can\'t approve your own pull request' : undefined}>
               {approvedByMe ? 'You approved' : 'Approve'}
             </button>
-            <button className="btn-primary" disabled={busy} onClick={merge}>Merge</button>
+            <button className="btn-primary" disabled={busy || blocked} onClick={merge}
+              title={blocked ? `${pr.target} needs an approval from someone other than the author` : undefined}>Merge</button>
           </div>
         )}
         {open && (canWrite || isAuthor) && (

@@ -1,5 +1,6 @@
 package in.nitw.minigit.pr;
 
+import in.nitw.minigit.branch.BranchProtection;
 import in.nitw.minigit.branch.BranchStore;
 import in.nitw.minigit.common.ApiException;
 import in.nitw.minigit.common.PageResponse;
@@ -22,8 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * U8: pull requests. States OPEN / MERGED / CLOSED (V1 schema). Approval is recorded in pr_approvals and never
- * required to merge. The merge itself is U6's MergeService; a PR turns MERGED when that service reports a merge of
+ * U8: pull requests. States OPEN / MERGED / CLOSED (V1 schema). Approval is recorded in pr_approvals and is optional,
+ * except when the target branch has require_approval on (BranchProtection). The merge itself is U6's MergeService; a PR turns MERGED when that service reports a merge of
  * its branch pair (BranchesMerged event), so conflicts resolved later in a merge session are covered too.
  */
 @Service
@@ -61,14 +62,16 @@ public class PullRequestService {
     private final MergeService merges;
     private final RepoObjectStores stores;
     private final RepoHistory history;
+    private final BranchProtection protection;
 
     public PullRequestService(JdbcTemplate jdbc, BranchStore branches, MergeService merges,
-                              RepoObjectStores stores, RepoHistory history) {
+                              RepoObjectStores stores, RepoHistory history, BranchProtection protection) {
         this.jdbc = jdbc;
         this.branches = branches;
         this.merges = merges;
         this.stores = stores;
         this.history = history;
+        this.protection = protection;
     }
 
     @Transactional
@@ -162,6 +165,10 @@ public class PullRequestService {
     public MergeOutcome merge(long repoId, long userId, String username, int number, String message) {
         Row row = require(repoId, number);
         PullRules.requireOpen(row.status());
+        if (protection.isRequired(repoId, row.target())
+                && !protection.hasApprovedOpenPr(repoId, row.source(), row.target())) {
+            throw BranchProtection.needsApproval(row.target());
+        }
         MergeService.MergeResult r = merges.merge(repoId, userId, username, row.source(), row.target(), null, message);
         switch (r.status()) {
             case "UP_TO_DATE", "FAST_FORWARD", "MERGED" -> markMerged(row.id(), r.commitHash());   // idempotent

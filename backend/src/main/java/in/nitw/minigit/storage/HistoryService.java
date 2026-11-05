@@ -71,6 +71,34 @@ public class HistoryService {
         return files;
     }
 
+    /** One file's bytes at a commit, or null if the path does not exist there (or is not a file). */
+    public byte[] readFile(String commitHash, String path) {
+        String treeHash = getCommit(commitHash).getTreeHash();
+        String[] parts = path.split("/");
+        for (int i = 0; i < parts.length; i++) {
+            verifyObject(treeHash);
+            if (!(store.read(treeHash) instanceof Tree tree)) {
+                throw new IllegalStateException("Expected a tree: " + treeHash);
+            }
+            TreeEntry hit = null;
+            for (TreeEntry e : tree.getEntries()) {
+                if (e.name().equals(parts[i])) { hit = e; break; }
+            }
+            if (hit == null) return null;
+            if (i == parts.length - 1) {
+                if (!"blob".equals(hit.type())) return null;
+                verifyObject(hit.hash());
+                if (!(store.read(hit.hash()) instanceof Blob blob)) {
+                    throw new IllegalStateException("Expected a blob: " + hit.hash());
+                }
+                return blob.serializeBody();
+            }
+            if (!"tree".equals(hit.type())) return null;
+            treeHash = hit.hash();
+        }
+        return null;
+    }
+
     /**
      * Restores a commit into targetDir (F8). The whole snapshot is read and
      * verified first, so a corrupted object means nothing is written.

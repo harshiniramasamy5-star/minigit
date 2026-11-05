@@ -2,6 +2,7 @@ package in.nitw.minigit.merge;
 
 import in.nitw.minigit.access.RepoAccess;
 import in.nitw.minigit.access.RepoAccess.Level;
+import in.nitw.minigit.branch.BranchProtection;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,15 +22,20 @@ public class MergeController {
 
     private final MergeService merges;
     private final RepoAccess access;
+    private final BranchProtection protection;
 
-    public MergeController(MergeService merges, RepoAccess access) {
+    public MergeController(MergeService merges, RepoAccess access, BranchProtection protection) {
         this.merges = merges;
         this.access = access;
+        this.protection = protection;
     }
 
     @PostMapping
     public MergeService.MergeResult merge(@PathVariable long repoId, @RequestBody MergeRequest req) {
         long user = writer(repoId);
+        if (protection.isRequired(repoId, req.target())) {
+            throw BranchProtection.direct(req.target(), "merge into");
+        }
         return merges.merge(repoId, user, access.username(user), req.source(), req.target(),
                 req.expectedTargetHead(), req.message());
     }
