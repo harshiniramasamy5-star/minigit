@@ -1,6 +1,7 @@
 package in.nitw.minigit.commit;
 
 import in.nitw.minigit.branch.BranchNames;
+import in.nitw.minigit.branch.BranchProtection;
 import in.nitw.minigit.branch.BranchStore;
 import in.nitw.minigit.branch.CommitRows;
 import in.nitw.minigit.common.ApiException;
@@ -38,15 +39,18 @@ public class CommitService {
     private final WorkingCopyRows workingCopies;
     private final WorktreeService worktree;
     private final UndoService undo;
+    private final BranchProtection protection;
 
     public CommitService(RepoObjectStores stores, BranchStore branches, CommitRows commitRows,
-                         WorkingCopyRows workingCopies, WorktreeService worktree, UndoService undo) {
+                         WorkingCopyRows workingCopies, WorktreeService worktree, UndoService undo,
+                         BranchProtection protection) {
         this.stores = stores;
         this.branches = branches;
         this.commitRows = commitRows;
         this.workingCopies = workingCopies;
         this.worktree = worktree;
         this.undo = undo;
+        this.protection = protection;
     }
 
     @Transactional
@@ -67,6 +71,9 @@ public class CommitService {
         boolean moved = !onBranch.headCommitHash().equals(base);
 
         boolean toNewBranch = newBranch != null && !newBranch.isBlank();
+        if (!toNewBranch && protection.isRequired(repoId, onBranch.name())) {
+            throw BranchProtection.direct(onBranch.name(), "commit to");
+        }
         if (moved && !toNewBranch) {
             throw new ApiException(HttpStatus.CONFLICT, "BRANCH_HEAD_MOVED",
                     "The branch moved since you started. Discard your changes or commit to a new branch.");

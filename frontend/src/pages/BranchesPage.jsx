@@ -17,6 +17,7 @@ export default function BranchesPage() {
   const [undoFor, setUndoFor] = useState(null)       // { branch, entries }
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [approvalOn, setApprovalOn] = useState([])   // branches that need an approved pull request
   const api2 = repo ? `/repos/${repo.id}` : null
 
   const load = useCallback(() => {
@@ -30,6 +31,13 @@ export default function BranchesPage() {
     }).catch(setError)
   }, [owner, name])
   useEffect(load, [load])
+
+  const loadRules = useCallback(() => {
+    if (!repo) return
+    api.get(`/repos/${repo.id}/branches/protection`, { silent: true })
+      .then((r) => setApprovalOn(r.data)).catch(() => setApprovalOn([]))
+  }, [repo])
+  useEffect(loadRules, [loadRules])
 
   const run = async (fn) => {
     setBusy(true)
@@ -51,6 +59,12 @@ export default function BranchesPage() {
     toast.success(`${b.name} moved to the recycle bin. You can restore it for 7 days.`)
     setConfirmDelete(null)
     load()
+  })
+
+  const setRule = (b, on) => run(async () => {
+    await api.put(`${api2}/branches/protection`, { name: b.name, requireApproval: on })
+    toast.success(on ? `${b.name} now needs an approved pull request` : `${b.name} no longer needs approval`)
+    loadRules()
   })
 
   const askUndo = (b) => run(async () => {
@@ -93,9 +107,16 @@ export default function BranchesPage() {
               <Link to={`..?ref=${encodeURIComponent(b.name)}`} relative="path" className="font-mono font-medium hover:underline">{b.name}</Link>
               {b.isDefault && <span className="rounded border border-line px-1.5 text-xs text-muted">default</span>}
               {b.isProtected && <span className="rounded border border-line px-1.5 text-xs text-muted">protected</span>}
+              {approvalOn.includes(b.name) && <span className="rounded border border-line px-1.5 text-xs text-muted">approval required</span>}
               <Link to={`../commits/${b.head}`} relative="path" className="hash hover:underline">{shortHash(b.head)}</Link>
               {canWrite && (
                 <span className="ml-auto flex gap-3 text-sm">
+                  {repo.myRole === 'OWNER' && (
+                    <button className="text-commit hover:underline" disabled={busy}
+                      onClick={() => setRule(b, !approvalOn.includes(b.name))}>
+                      {approvalOn.includes(b.name) ? 'Remove approval rule' : 'Require approval'}
+                    </button>
+                  )}
                   <button className="text-commit hover:underline" disabled={busy} onClick={() => askUndo(b)}>Undo</button>
                   {!b.isProtected && (confirmDelete === b.name ? (
                     <span className="flex gap-2">
@@ -158,7 +179,10 @@ export default function BranchesPage() {
                 {branches.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
               </select>
             </div>
-            <button className="btn-primary" disabled={busy || !merge.source || merge.source === merge.target}>Merge</button>
+            <button className="btn-primary" disabled={busy || !merge.source || merge.source === merge.target || approvalOn.includes(merge.target)}>Merge</button>
+            {approvalOn.includes(merge.target) && (
+              <p className="text-xs text-conflict">{merge.target} needs an approved pull request, so it can't be merged into directly.</p>
+            )}
             <p className="text-xs text-muted">If both branches changed the same file you'll resolve the conflicts next. For a reviewed merge, use a pull request.</p>
           </form>
         </div>
