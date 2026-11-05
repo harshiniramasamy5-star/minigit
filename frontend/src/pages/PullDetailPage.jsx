@@ -82,7 +82,7 @@ export default function PullDetailPage() {
         <p className="mt-1 text-sm text-muted">
           {pr.approvals.length ? `Approved by ${pr.approvals.join(', ')}.` : 'No approvals yet.'} {needsRule
             ? `${pr.target} is protected: it needs one approval from someone other than the author.`
-            : 'Approval is recorded but not required to merge.'}
+            : 'Approval is recorded but not required to merge.'} Approvals reset when new commits are pushed to the source branch.
         </p>
         {open && canWrite && (
           <div className="mt-3 flex flex-wrap gap-2">

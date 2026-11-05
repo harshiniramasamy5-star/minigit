@@ -24,7 +24,8 @@ import java.util.List;
 
 /**
  * U8: pull requests. States OPEN / MERGED / CLOSED (V1 schema). Approval is recorded in pr_approvals and is optional,
- * except when the target branch has require_approval on (BranchProtection). The merge itself is U6's MergeService; a PR turns MERGED when that service reports a merge of
+ * except when the target branch has require_approval on (BranchProtection).
+ * An approval counts for the source branch head it was given on; new commits on the source reset it. The merge itself is U6's MergeService; a PR turns MERGED when that service reports a merge of
  * its branch pair (BranchesMerged event), so conflicts resolved later in a merge session are covered too.
  */
 @Service
@@ -144,7 +145,11 @@ public class PullRequestService {
         Row row = require(repoId, number);
         PullRules.requireOpen(row.status());
         PullRules.checkApprover(row.author(), username);
-        jdbc.update("INSERT IGNORE INTO pr_approvals (pr_id, user_id) VALUES (?, ?)", row.id(), userId);
+        String head = branches.find(repoId, row.source())
+                .orElseThrow(() -> ApiException.notFound("Branch " + row.source())).headCommitHash();
+        jdbc.update("INSERT INTO pr_approvals (pr_id, user_id, source_head_hash) VALUES (?, ?, ?) "
+                + "ON DUPLICATE KEY UPDATE source_head_hash = VALUES(source_head_hash), approved_at = CURRENT_TIMESTAMP(3)",
+                row.id(), userId, head);
     }
 
     @Transactional
@@ -212,8 +217,11 @@ public class PullRequestService {
     }
 
     private PullView view(Row r) {
-        List<String> approvals = jdbc.queryForList("SELECT u.username FROM pr_approvals pa JOIN users u ON u.id = pa.user_id "
-                + "WHERE pa.pr_id = ? ORDER BY pa.approved_at, u.username", String.class, r.id());
+        List<String> approvals = jdbc.queryForList("SELECT u.username FROM pr_approvals pa "
+                + "JOIN users u ON u.id = pa.user_id JOIN pull_requests p ON p.id = pa.pr_id "
+                + "LEFT JOIN branches b ON b.repo_id = p.repo_id AND b.name = p.source_branch_name AND b.deleted_at IS NULL "
+                + "WHERE pa.pr_id = ? AND (p.status <> 'OPEN' OR pa.source_head_hash = b.head_commit_hash) "
+                + "ORDER BY pa.approved_at, u.username", String.class, r.id());
         return new PullView(r.number(), r.title(), r.description(), r.author(), r.source(), r.target(), r.status(),
                 approvals, r.createdAt(), r.closedAt(), r.mergeCommit());
     }

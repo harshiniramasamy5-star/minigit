@@ -117,7 +117,9 @@ export default function BranchesPage() {
                       {approvalOn.includes(b.name) ? 'Remove approval rule' : 'Require approval'}
                     </button>
                   )}
-                  <button className="text-commit hover:underline" disabled={busy} onClick={() => askUndo(b)}>Undo</button>
+                  {!approvalOn.includes(b.name) && (
+                    <button className="text-commit hover:underline" disabled={busy} onClick={() => askUndo(b)}>Undo</button>
+                  )}
                   {!b.isProtected && (confirmDelete === b.name ? (
                     <span className="flex gap-2">
                       <button className="text-danger hover:underline" disabled={busy} onClick={() => deleteBranch(b)}>Yes, delete</button>

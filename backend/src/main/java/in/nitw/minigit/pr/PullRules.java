@@ -40,7 +40,7 @@ public final class PullRules {
         }
     }
 
-    /** No self-approval (SRS). Approval is only recorded, never required to merge. */
+    /** No self-approval (SRS). Whether approval is required to merge depends on the target branch's approval rule (BranchProtection). */
     public static void checkApprover(String author, String reviewer) {
         if (author.equals(reviewer)) {
             throw ApiException.forbidden("Authors cannot approve their own pull request");
