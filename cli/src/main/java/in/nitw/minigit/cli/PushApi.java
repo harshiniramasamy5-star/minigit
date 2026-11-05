@@ -32,11 +32,12 @@ public final class PushApi {
                         + "Push to a new branch instead: minigit push --new-branch <name>");
             }
         } else {
+            // Branch creation lives at /repos/{repoId}/branches (numeric id); its "from" takes a commit hash.
+            String repoId = new ReadApi(api).repo(cfg.owner, cfg.repo).path("id").asText();
             Map<String, String> body = new LinkedHashMap<>();
             body.put("name", newBranch);
-            body.put("fromRef", cfg.base);   // api-contract.md
-            body.put("from", cfg.base);      // the backend's current BranchController names it "from"
-            api.post(repo + "/branches", body);
+            body.put("from", cfg.base);
+            api.post("/repos/" + ApiClient.seg(repoId) + "/branches", body);
             target = newBranch;
         }
 
