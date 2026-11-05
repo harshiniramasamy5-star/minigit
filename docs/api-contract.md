@@ -6,6 +6,11 @@ Repos are addressed as `{owner}/{repo}` (username + repo name), like GitHub.
 
 Status for review: **nothing here is final until all four of us OK it.** Change it by PR to this file.
 
+**v0.6 changes (Harshini, 2026-11-05):** branch protection (`require_approval`), blame, revert; new codes
+`BRANCH_PROTECTED`, `APPROVAL_REQUIRED`, `REVERT_CONFLICT`, `CANNOT_REVERT`, `NOT_IN_BRANCH`, `NOTHING_TO_REVERT`, `BLAME_BINARY`,
+`BLAME_TOO_LARGE`; approval is optional by default and required on protected branches; an approval counts for the source
+branch head it was given on.
+
 **v0.5 changes (U8 built, 2026-10-24):** pull request shapes as built (`{pr, diff, comments}` detail), `PR_NOT_OPEN` /
 `PR_EXISTS` / `NOTHING_TO_MERGE` codes, list defaults to `OPEN` (`status=ALL` for everything), close allowed for the author,
 question 5 settled (a merge event marks the PR MERGED).
@@ -45,6 +50,11 @@ added. Two new questions at the bottom.
 | 409 | `WORKTREE_DIRTY` | Switching branch, or restoring onto the branch you are on, while you have uncommitted changes |
 | 409 | `NAME_TAKEN` | Username, email, repo or branch name already exists. A repo or branch name that is in the recycle bin counts as taken (its message says so). |
 | 409 | `REPO_IN_RECYCLE_BIN` | Restoring a branch whose repository is still in the bin |
+| 403 | `BRANCH_PROTECTED` | Commit, direct merge, restore, undo or revert on a branch that has the approval rule on |
+| 409 | `APPROVAL_REQUIRED` | Merging a pull request (or finishing its merge session) into a protected branch without an approval from someone other than the author |
+| 409 | `REVERT_CONFLICT` | Revert would conflict with later changes; nothing is changed |
+| 400 | `CANNOT_REVERT` / `NOT_IN_BRANCH` / `NOTHING_TO_REVERT` | First or merge commit; commit not in that branch's history; its changes are already gone |
+| 400 | `BLAME_BINARY` / `BLAME_TOO_LARGE` | Blame on a binary file, a file over 2000 lines or 512 KB, or a history needing over 500 steps |
 | 423 | `ACCOUNT_LOCKED` | 5 failed logins, locked 15 min |
 | 500 | `INTERNAL_ERROR` | Anything unhandled (logged on the server) |
 
@@ -168,16 +178,27 @@ Branch names with `/` (e.g. `feat/login`) are URL-encoded in the path.
 | POST | `/repos/{owner}/{repo}/pulls` | `{title, description?, source, target}` (Write); title <= 200, description <= 5000; branches must differ and exist | 201 PR |
 | GET | `/repos/{owner}/{repo}/pulls/{number}` | `diff` = what the merge would bring in (merge base to source head), only while OPEN; merged PRs link to `mergeCommit` | `{pr, diff: [same as /diff], comments: [{id, author, body, createdAt}]}` |
 | POST | `/repos/{owner}/{repo}/pulls/{number}/comments` | `{body}` (any role on the repo; PR must be OPEN) | 201 `{id, author, body, createdAt}` |
-| POST | `/repos/{owner}/{repo}/pulls/{number}/approve` | not the author, PR must be OPEN; approving twice is a no-op (Write) | 204 |
-| POST | `/repos/{owner}/{repo}/pulls/{number}/merge` | runs U6, approval **not** required (Write) | `{result: UP_TO_DATE\|FAST_FORWARD\|MERGED\|CONFLICTS, commit?, sessionId?, pr}` |
+| POST | `/repos/{owner}/{repo}/pulls/{number}/approve` | not the author, PR must be OPEN; approving again records the source branch's current head; new commits on the source reset approvals (Write) | 204 |
+| POST | `/repos/{owner}/{repo}/pulls/{number}/merge` | runs U6; approval not required, unless the target branch has the approval rule on: then 409 `APPROVAL_REQUIRED` until someone other than the author has approved the source's current head (Write) | `{result: UP_TO_DATE\|FAST_FORWARD\|MERGED\|CONFLICTS, commit?, sessionId?, pr}` |
 | POST | `/repos/{owner}/{repo}/pulls/{number}/close` | PR must be OPEN; Write access or the PR's author | PR |
 
 PR = `{number, title, description, author, source, target, status: OPEN|MERGED|CLOSED, approvals: [username], createdAt, closedAt?, mergeCommit?}`
 
 There is no `APPROVED` status. Approving adds a row to `pr_approvals` and the PR stays `OPEN` (SRS v1.2: approval
-recorded, not required to merge). On `CONFLICTS` the PR stays `OPEN`; the user resolves through
+recorded; required only when the target branch has the approval rule on). On `CONFLICTS` the PR stays `OPEN`; the user resolves through
 `/merges/{sessionId}` and the PR becomes `MERGED` when that session completes (`MergeService` publishes a `BranchesMerged` event
 that U8 listens to, so any merge of that branch pair marks the matching open PR merged).
+
+## Branch protection, blame, revert: Harshini
+
+| Method | Path | Notes | Response |
+|---|---|---|---|
+| GET | `/repos/{repoId}/branches/protection` | names of branches with the approval rule on (any reader) | `["main"]` |
+| PUT | `/repos/{repoId}/branches/protection` | `{name, requireApproval}` (Owner). On: no direct commits, merges, restores or undo on that branch; PR merges need an approval from someone other than the author | `{branch, requireApproval}` |
+| GET | `/repos/{repoId}/blame?ref=&path=` | `ref` = branch or full hash; text files only; Read | `{ref, commit, path, lines: [{line, text, commit, author, time, message}]}` |
+| POST | `/repos/{owner}/{repo}/commits/{hash}/revert` | `{branch}` (Write); new commit that undoes that commit on the branch; undoable | 201 Commit |
+
+`branches.is_protected` (true for `main`) still only blocks deleting the branch. The approval rule is `branches.require_approval` (V2, off by default).
 
 ## Harshini: explore, dashboard, health
 

@@ -1,5 +1,6 @@
 package in.nitw.minigit.history;
 
+import in.nitw.minigit.branch.BranchProtection;
 import in.nitw.minigit.branch.BranchStore;
 import in.nitw.minigit.branch.CommitRows;
 import in.nitw.minigit.commit.CommitService.CommitView;
@@ -56,15 +57,17 @@ public class RepoHistory {
     private final JdbcTemplate jdbc;
     private final WorktreeService worktree;
     private final UndoService undo;
+    private final BranchProtection protection;
 
     public RepoHistory(RepoObjectStores stores, BranchStore branches, CommitRows commitRows, JdbcTemplate jdbc,
-                       WorktreeService worktree, UndoService undo) {
+                       WorktreeService worktree, UndoService undo, BranchProtection protection) {
         this.stores = stores;
         this.branches = branches;
         this.commitRows = commitRows;
         this.jdbc = jdbc;
         this.worktree = worktree;
         this.undo = undo;
+        this.protection = protection;
     }
 
     /** A branch name or a full commit hash that belongs to this repo. Blank = the default branch. */
@@ -153,6 +156,9 @@ public class RepoHistory {
         }
         BranchStore.Branch b = branches.find(repoId, branch)
                 .orElseThrow(() -> ApiException.notFound("Branch " + branch));
+        if (protection.isRequired(repoId, branch)) {
+            throw BranchProtection.direct(branch, "restore files on");
+        }
         String target = resolve(repoId, commit, defaultBranch);
 
         WorkingCopyRows.Row wc = worktree.ensure(repoId, userId, defaultBranch);

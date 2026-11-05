@@ -46,11 +46,13 @@ public class BranchProtection {
         return true;
     }
 
-    /** True if an open PR source -> target has an approval from someone other than its author. */
+    /** True if an open PR source -> target has an approval, from someone other than its author, for the source's CURRENT head. */
     public boolean hasApprovedOpenPr(long repoId, String source, String target) {
         Long n = jdbc.queryForObject("SELECT COUNT(*) FROM pull_requests p JOIN pr_approvals a ON a.pr_id = p.id "
+                + "JOIN branches b ON b.repo_id = p.repo_id AND b.name = p.source_branch_name AND b.deleted_at IS NULL "
                 + "WHERE p.repo_id = ? AND p.source_branch_name = ? AND p.target_branch_name = ? "
-                + "AND p.status = 'OPEN' AND a.user_id <> p.author_id", Long.class, repoId, source, target);
+                + "AND p.status = 'OPEN' AND a.user_id <> p.author_id "
+                + "AND a.source_head_hash = b.head_commit_hash", Long.class, repoId, source, target);
         return n != null && n > 0;
     }
 

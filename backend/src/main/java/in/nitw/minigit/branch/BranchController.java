@@ -68,6 +68,9 @@ public class BranchController {
     @PostMapping("/undo")
     public Map<String, String> undo(@PathVariable long repoId, @RequestBody NameRequest req) {
         writer(repoId);
+        if (protection.isRequired(repoId, req.name())) {
+            throw BranchProtection.direct(req.name(), "undo changes on");
+        }
         return Map.of("branch", req.name(), "undone", branches.undo(repoId, req.name()));
     }
 

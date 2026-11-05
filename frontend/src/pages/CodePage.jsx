@@ -16,6 +16,7 @@ export default function CodePage() {
   const [error, setError] = useState(null)
   const [reload, setReload] = useState(0)
   const [showBlame, setShowBlame] = useState(false)
+  const [approvalOn, setApprovalOn] = useState([])   // branches that need an approved pull request
   const [blameData, setBlameData] = useState(null)   // null = loading, { lines } or { error }
   const base = `/repos/${owner}/${name}`
   const ref = params.get('ref') || repo?.defaultBranch
@@ -41,6 +42,12 @@ export default function CodePage() {
       .then((r) => setFile({ path: open, text: r.headers['content-type']?.startsWith('text/') ? r.data : null }))
       .catch(() => setFile({ path: open, text: null }))
   }, [base, ref, open, reload])
+
+  useEffect(() => {
+    if (!repo) return
+    api.get(`/repos/${repo.id}/branches/protection`, { silent: true })
+      .then((r) => setApprovalOn(r.data)).catch(() => setApprovalOn([]))
+  }, [repo, reload])
 
   useEffect(() => { setShowBlame(false); setBlameData(null) }, [ref, open])
 
@@ -124,6 +131,13 @@ export default function CodePage() {
               ? <BlameTable data={blameData} />
               : <pre className="overflow-x-auto p-3 font-mono text-xs leading-5">{file.text}</pre>}
         </section>
+      )}
+
+      {canWrite && approvalOn.length > 0 && (
+        <p className="rounded border border-line bg-white p-3 text-sm text-muted">
+          {approvalOn.join(', ')} {approvalOn.length === 1 ? 'is' : 'are'} protected: you can't commit to{' '}
+          {approvalOn.length === 1 ? 'it' : 'them'} directly. Commit to a new branch, then open a pull request.
+        </p>
       )}
 
       {canWrite && (
