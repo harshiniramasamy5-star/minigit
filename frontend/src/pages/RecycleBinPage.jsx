@@ -46,10 +46,10 @@ export default function RecycleBinPage() {
       {error && <p className="mt-6 text-sm text-danger">{error.message}</p>}
       {!items && !error && <p className="mt-6 text-sm text-muted">Loading…</p>}
       {items && items.length === 0 && (
-        <div className="mt-6 rounded-lg border border-line bg-white p-8 text-sm text-muted">Nothing here.</div>
+        <div className="mt-6 rounded-lg border border-line bg-surface p-8 text-sm text-muted">Nothing here.</div>
       )}
       {items && items.length > 0 && (
-        <ul className="mt-4 divide-y divide-line rounded-lg border border-line bg-white">
+        <ul className="mt-4 divide-y divide-line rounded-lg border border-line bg-surface">
           {items.map((it) => (
             <li key={it.id} className="flex flex-wrap items-center gap-3 p-4">
               <div className="min-w-0 flex-1">

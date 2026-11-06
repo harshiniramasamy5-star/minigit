@@ -2,16 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .btn { @apply inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
-  .btn-primary { @apply btn bg-commit text-white hover:bg-commit-dark; }
-  .btn-secondary { @apply btn border border-line bg-white text-ink hover:bg-paper; }
-  .btn-danger { @apply btn bg-danger text-white hover:opacity-90; }
-  .input { @apply w-full rounded-md border border-line bg-white px-3 py-2 text-sm placeholder:text-muted focus:border-commit focus:outline-none focus:ring-2 focus:ring-commit/20; }
-  .hash { @apply font-mono text-xs text-muted; }
+/* GitHub palettes. Values are "R G B" so Tailwind can add opacity (see tailwind.config.js). */
+:root,
+:root[data-theme='light'] {
+  --c-ink: 31 35 40;
+  --c-paper: 255 255 255;
+  --c-surface: 246 248 250;
+  --c-header: 246 248 250;
+  --c-line: 208 215 222;
+  --c-muted: 101 109 118;
+  --c-link: 9 105 218;
+  --c-accent: 9 105 218;
+  --c-commit: 31 136 61;
+  --c-commit-dark: 26 127 55;
+  --c-commit-soft: 218 251 225;
+  --c-merged: 130 80 223;
+  --c-conflict: 154 103 0;
+  --c-danger: 207 34 46;
+  /* contribution heatmap, "Less" to "More" */
+  --heat-0: #ebedf0;
+  --heat-1: #9be9a8;
+  --heat-2: #40c463;
+  --heat-3: #30a14e;
+  --heat-4: #216e39;
+  color-scheme: light;
 }
 
-:focus-visible { outline: 2px solid #1F6F78; outline-offset: 2px; }
+:root[data-theme='dark'] {
+  --c-ink: 230 237 243;
+  --c-paper: 13 17 23;
+  --c-surface: 22 27 34;
+  --c-header: 22 27 34;
+  --c-line: 48 54 61;
+  --c-muted: 139 148 158;
+  --c-link: 88 166 255;
+  --c-accent: 31 111 235;
+  --c-commit: 35 134 54;
+  --c-commit-dark: 46 160 67;
+  --c-commit-soft: 17 49 30;
+  --c-merged: 163 113 247;
+  --c-conflict: 210 153 34;
+  --c-danger: 248 81 73;
+  --heat-0: #161b22;
+  --heat-1: #0e4429;
+  --heat-2: #006d32;
+  --heat-3: #26a641;
+  --heat-4: #39d353;
+  color-scheme: dark;
+}
+
+/* Until JS sets data-theme (index.html does it before first paint) behave like dark, GitHub's default. */
+body { @apply bg-paper text-ink; }
+
+@layer components {
+  .btn { @apply inline-flex items-center gap-2 rounded-md border border-transparent px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-primary { @apply btn border-white/10 bg-commit text-white hover:bg-commit-dark; }
+  .btn-secondary { @apply btn border-line bg-surface text-ink hover:border-muted/60 hover:bg-line/40; }
+  .btn-danger { @apply btn border-white/10 bg-danger text-white hover:opacity-90; }
+  .input { @apply w-full rounded-md border border-line bg-paper px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30; }
+  .hash { @apply font-mono text-xs text-muted; }
+  .box { @apply rounded-md border border-line bg-surface; }
+  .box-header { @apply border-b border-line px-4 py-2.5 text-sm font-semibold; }
+}
+
+:focus-visible { outline: 2px solid rgb(var(--c-accent)); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

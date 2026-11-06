@@ -3,9 +3,9 @@ import { onApiError } from '../api/client'
 
 const ToastContext = createContext(null)
 const TONES = {
-  error: 'border-danger/30 bg-white text-ink [&>span]:bg-danger',
-  success: 'border-commit/30 bg-white text-ink [&>span]:bg-commit',
-  info: 'border-line bg-white text-ink [&>span]:bg-muted',
+  error: 'border-danger/30 bg-surface text-ink [&>span]:bg-danger',
+  success: 'border-commit/30 bg-surface text-ink [&>span]:bg-commit',
+  info: 'border-line bg-surface text-ink [&>span]:bg-muted',
 }
 
 export function ToastProvider({ children }) {

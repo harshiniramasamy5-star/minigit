@@ -3,6 +3,9 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import CommitGraph from '../components/CommitGraph'
 
+const PAGE = 200            // matches the backend default
+const MAX = 500             // backend ceiling (ActivityReadQueries.MAX_GRAPH_LIMIT)
+
 // U4 UI (Harshini). Data: GET /repos/{owner}/{repo}/graph?limit=200 (Arisha's endpoint).
 // Add ?demo=1 to the URL to see sample history (for screenshots and demos).
 export default function GraphPage() {
@@ -11,14 +14,18 @@ export default function GraphPage() {
   const demo = params.get('demo') === '1'
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [limit, setLimit] = useState(PAGE)
+
+  // switching repo starts again from the first page
+  useEffect(() => { setLimit(PAGE) }, [owner, repo])
 
   useEffect(() => {
     if (demo) { setData(DEMO); setError(null); return }
-    setData(null); setError(null)
-    api.get(`/repos/${owner}/${repo}/graph`, { params: { limit: 200 }, silent: true })
+    setError(null)
+    api.get(`/repos/${owner}/${repo}/graph`, { params: { limit }, silent: true })
       .then((res) => setData(res.data))
       .catch(setError)
-  }, [owner, repo, demo])
+  }, [owner, repo, demo, limit])
 
   if (error) {
     return (
@@ -32,12 +39,31 @@ export default function GraphPage() {
   if (!data) return <p className="text-sm text-muted">Loading history…</p>
   if (data.commits.length === 0) return <p className="text-sm text-muted">No commits yet.</p>
 
+  const mayHaveMore = !demo && data.commits.length >= limit && limit < MAX
+
   return (
     <div>
-      {demo && <p className="mb-3 text-xs text-muted">Showing sample data (demo mode).</p>}
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+        <span><strong className="text-ink">{data.commits.length}</strong> {data.commits.length === 1 ? 'commit' : 'commits'}</span>
+        <span><strong className="text-ink">{data.branches.length}</strong> {data.branches.length === 1 ? 'branch' : 'branches'}</span>
+        <span className="flex items-center gap-3 text-xs">
+          <Legend dot="bg-commit" label="commit" />
+          <Legend dot="border-2 border-merged bg-surface" label="merge commit" />
+        </span>
+        {demo && <span className="text-xs">Showing sample data (demo mode).</span>}
+      </div>
       <CommitGraph commits={data.commits} branches={data.branches} />
+      {mayHaveMore && (
+        <div className="mt-4 text-center">
+          <button className="btn-secondary" onClick={() => setLimit((l) => Math.min(MAX, l + PAGE))}>Load older commits</button>
+        </div>
+      )}
     </div>
   )
+}
+
+function Legend({ dot, label }) {
+  return <span className="inline-flex items-center gap-1.5"><span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} />{label}</span>
 }
 
 const h = (c) => c.repeat(64)

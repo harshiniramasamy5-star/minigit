@@ -26,3 +26,11 @@ The frontend then sends `X-Dev-User: <username>` instead of a token (`CurrentUse
   and repo creation inserts the `OWNER` row. Set `MINIGIT_OPEN_DEV=false` and a real `JWT_SECRET` to turn real auth on.
 - **Arisha (U4):** the graph calls `GET /repos/{owner}/{repo}/graph?limit=200` and expects
   `{ commits: [{hash, parents, message, author, createdAt}], branches: [{name, head}] }`, commits newest first.
+
+## UI refresh (GitHub look)
+
+- Dark/light theme: colours are CSS variables in `frontend/src/index.css`; the toggle is in the header (`lib/theme.js`).
+- Dashboard (`/`) shows the contribution heatmap + activity overview from `GET /activity`. Add `?demo=1` to preview with sample data.
+- Login/Register use `PasswordInput` (show/hide eye + Caps Lock hint).
+- Graph tab shows every commit message with author, age, branch/merge pills. "Load older commits" raises `limit` up to 500.
+- Java: `ContributionKind` (enum with behaviour) + `ContributionTally` replace the string switch in `ActivityReadQueries`.

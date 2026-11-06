@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import PasswordInput from '../components/PasswordInput'
 
 // U1: create an account, then log straight in.
 export default function RegisterPage() {
@@ -33,9 +34,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <h1 className="text-2xl font-semibold tracking-tight">Create your MiniGit account</h1>
-      <form onSubmit={submit} className="mt-6 space-y-4">
+    <div className="mx-auto max-w-[340px] pt-4">
+      <h1 className="text-center text-2xl font-light tracking-tight">Create your MiniGit account</h1>
+      <form onSubmit={submit} className="box mt-4 space-y-4 p-4">
         <div>
           <label htmlFor="username" className="mb-1 block text-sm font-medium">Username</label>
           <input id="username" className="input" autoComplete="username" required minLength={3} maxLength={40}
@@ -48,18 +49,18 @@ export default function RegisterPage() {
         </div>
         <div>
           <label htmlFor="password" className="mb-1 block text-sm font-medium">Password</label>
-          <input id="password" type="password" className="input" autoComplete="new-password" required minLength={8} maxLength={72}
+          <PasswordInput id="password" autoComplete="new-password" required minLength={8} maxLength={72}
             value={form.password} onChange={set('password')} />
           <p className="mt-1 text-xs text-muted">8-72 characters.</p>
         </div>
         <div>
           <label htmlFor="confirm" className="mb-1 block text-sm font-medium">Confirm password</label>
-          <input id="confirm" type="password" className="input" autoComplete="new-password" required value={form.confirm} onChange={set('confirm')} />
+          <PasswordInput id="confirm" autoComplete="new-password" required value={form.confirm} onChange={set('confirm')} />
         </div>
-        {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+        {error && <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">{error}</p>}
         <button className="btn-primary w-full justify-center" disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
       </form>
-      <p className="mt-4 text-sm text-muted">Already have an account? <Link to="/login" className="text-commit hover:underline">Log in</Link></p>
+      <p className="mt-4 rounded-md border border-line p-4 text-center text-sm">Already have an account? <Link to="/login" className="text-link hover:underline">Log in</Link></p>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,6 +7,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
     <title>MiniGit</title>
+    <!-- Apply the saved theme before first paint so there is no white flash. Same key as src/lib/theme.js. -->
+    <script>
+      try { document.documentElement.dataset.theme = localStorage.getItem('minigit.theme') === 'light' ? 'light' : 'dark' } catch (e) {}
+    </script>
   </head>
   <body class="bg-paper text-ink font-sans antialiased">
     <div id="root"></div>

@@ -21,7 +21,7 @@ export default function RepoSettingsPage() {
   if (error) return <p className="text-sm text-danger">{error.message}</p>
   if (!repo) return <p className="text-sm text-muted">Loading…</p>
   if (repo.myRole !== 'OWNER') {
-    return <p className="rounded-lg border border-line bg-white p-6 text-sm text-muted">Only the owner can change settings or manage collaborators.</p>
+    return <p className="rounded-lg border border-line bg-surface p-6 text-sm text-muted">Only the owner can change settings or manage collaborators.</p>
   }
 
   return (
@@ -131,7 +131,7 @@ function Collaborators({ base, ownerName }) {
       <h2 id="collab" className="text-lg font-semibold">Collaborators</h2>
       <p className="mt-1 text-sm text-muted">Read can browse and comment. Write can also commit, branch, merge and open pull requests.</p>
 
-      <ul className="mt-4 divide-y divide-line rounded-lg border border-line bg-white">
+      <ul className="mt-4 divide-y divide-line rounded-lg border border-line bg-surface">
         {(list ?? []).map((c) => (
           <li key={c.userId} className="flex items-center gap-3 p-3 text-sm">
             <span className="flex-1 font-medium">{c.username}</span>
